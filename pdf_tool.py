@@ -1,14 +1,19 @@
+"""PDF 쪽 추출 · 병합기.
+
+streamlit_app.py 에서 render() 를 호출해 사용합니다.
+"""
 import io
 import os
 import zipfile
-import streamlit as st
+
 from pypdf import PdfReader, PdfWriter
 
-st.set_page_config(page_title="PDF 쪽 추출 · 병합기", page_icon="📄")
 
-
+# ===========================================================================
+#  코어 로직
+# ===========================================================================
 def parse_pages(text, max_page):
-    """'1, 3, 9-12' -> [1, 3, 9, 10, 11, 12] (중복 제거, 정렬)"""
+    """'1, 3, 9-12' -> [1, 3, 9, 10, 11, 12] (중복 제거, 오름차순)"""
     pages = set()
     for part in text.replace(" ", "").split(","):
         if not part:
@@ -28,6 +33,8 @@ def parse_pages(text, max_page):
 
 
 def extract_to_bytes(file, page_text):
+    """단일 PDF에서 지정한 쪽만 뽑아 bytes 로 반환."""
+    file.seek(0)
     reader = PdfReader(file)
     pages = parse_pages(page_text, len(reader.pages))
     writer = PdfWriter()
@@ -35,11 +42,11 @@ def extract_to_bytes(file, page_text):
         writer.add_page(reader.pages[p - 1])
     buf = io.BytesIO()
     writer.write(buf)
-    buf.seek(0)
     return buf.getvalue(), len(pages)
 
 
 def merge_to_bytes(files, page_text=None, add_bookmarks=True):
+    """여러 PDF를 순서대로 병합. page_text 가 있으면 해당 쪽만 사용."""
     writer = PdfWriter()
     total = 0
     for f in files:
@@ -59,94 +66,137 @@ def merge_to_bytes(files, page_text=None, add_bookmarks=True):
             writer.add_outline_item(os.path.splitext(f.name)[0], start)
     buf = io.BytesIO()
     writer.write(buf)
-    buf.seek(0)
     return buf.getvalue(), total
 
 
-st.title("📄 PDF 쪽 추출 · 병합기")
-st.caption("수능·모의고사 PDF에서 원하는 쪽만 뽑거나, 여러 파일을 한 권으로 묶습니다.")
+# ===========================================================================
+#  Streamlit UI  (streamlit_app.py 에서 render() 호출)
+# ===========================================================================
+def render():
+    import streamlit as st
 
-uploaded = st.file_uploader(
-    "PDF 파일 선택 (여러 개 가능)", type="pdf", accept_multiple_files=True
-)
+    st.subheader("📑 PDF 쪽 추출 · 병합기")
+    st.caption("수능·모의고사 PDF에서 원하는 쪽만 뽑거나, 여러 파일을 한 권으로 묶습니다.")
 
-if uploaded:
-    st.success(f"{len(uploaded)}개 업로드됨")
-
-    # 병합 순서 조정
-    order = st.multiselect(
-        "처리 순서 (드래그로 순서 변경, 빼면 제외됩니다)",
-        options=[f.name for f in uploaded],
-        default=[f.name for f in uploaded],
+    uploaded = st.file_uploader(
+        "PDF 파일 선택 (여러 개 가능)", type="pdf",
+        accept_multiple_files=True, key="pdf_upload",
     )
-    by_name = {f.name: f for f in uploaded}
-    files = [by_name[n] for n in order]
-else:
+
     files = []
+    if uploaded:
+        st.success(f"{len(uploaded)}개 업로드됨")
+        order = st.multiselect(
+            "처리 순서 (드래그로 순서 변경, 빼면 제외됩니다)",
+            options=[f.name for f in uploaded],
+            default=[f.name for f in uploaded],
+            key="pdf_order",
+        )
+        by_name = {f.name: f for f in uploaded}
+        files = [by_name[n] for n in order]
 
-col1, col2 = st.columns([3, 2])
-with col1:
-    page_text = st.text_input("쪽 번호", value="9-12", help="예: 9-12 / 1, 3, 5 / 1, 9-12, 20")
-with col2:
-    suffix = st.text_input("파일명 접미사", value="_미적분")
+    col1, col2 = st.columns([3, 2])
+    with col1:
+        page_text = st.text_input(
+            "쪽 번호", value="9-12", key="pdf_pages",
+            help="예: 9-12 / 1, 3, 5 / 1, 9-12, 20",
+        )
+    with col2:
+        suffix = st.text_input("파일명 접미사", value="_미적분", key="pdf_suffix")
 
-tab1, tab2 = st.tabs(["쪽 추출", "하나로 합치기"])
-
-with tab1:
-    st.write("각 파일에서 지정한 쪽만 뽑아 **파일별로 따로** 저장합니다.")
-    if st.button("추출 실행", type="primary", use_container_width=True, disabled=not files):
-        results, errors = [], []
-        for f in files:
-            try:
-                f.seek(0)
-                data, n = extract_to_bytes(f, page_text)
-                base = os.path.splitext(f.name)[0]
-                results.append((f"{base}{suffix or '_추출'}.pdf", data, n))
-            except Exception as e:
-                errors.append(f"{f.name}: {e}")
-
-        for name, data, n in results:
-            st.download_button(
-                f"⬇ {name} ({n}쪽)", data, file_name=name,
-                mime="application/pdf", key=f"dl_{name}",
-            )
-
-        if len(results) > 1:
-            zbuf = io.BytesIO()
-            with zipfile.ZipFile(zbuf, "w", zipfile.ZIP_DEFLATED) as z:
-                for name, data, _ in results:
-                    z.writestr(name, data)
-            st.download_button(
-                "📦 전체 ZIP으로 받기", zbuf.getvalue(),
-                file_name="추출결과.zip", mime="application/zip",
-                type="primary", use_container_width=True,
-            )
-
-        for e in errors:
-            st.error(e)
-
-with tab2:
-    st.write("선택한 파일을 **위 순서대로** 이어 붙여 한 개의 PDF로 만듭니다.")
-    only_selected = st.checkbox(
-        "합칠 때 각 파일에서 지정한 쪽만 가져오기 (해제하면 전체 쪽)", value=True
-    )
-    add_bm = st.checkbox("파일명으로 북마크(목차) 넣기", value=True)
-    out_name = st.text_input("저장할 파일명", value="합본.pdf")
-
-    if st.button("하나로 합치기", type="primary", use_container_width=True,
-                 disabled=len(files) < 2):
+    def _validate(text):
         try:
-            data, total = merge_to_bytes(
-                files, page_text if only_selected else None, add_bm
-            )
-            st.success(f"{len(files)}개 파일, 총 {total}쪽")
-            st.download_button(
-                f"⬇ {out_name} 다운로드", data,
-                file_name=out_name if out_name.endswith(".pdf") else out_name + ".pdf",
-                mime="application/pdf", type="primary", use_container_width=True,
-            )
-        except Exception as e:
-            st.error(f"병합 실패: {e}")
+            parse_pages(text, 10000)
+            return True
+        except Exception:
+            st.error("쪽 번호 형식이 잘못되었습니다.  예: 1, 3, 9-12")
+            return False
 
-    if len(files) < 2:
-        st.info("2개 이상 업로드하면 활성화됩니다.")
+    sub_ext, sub_merge = st.tabs(["쪽 추출", "하나로 합치기"])
+
+    # ---------------- 쪽 추출 ----------------
+    with sub_ext:
+        st.write("각 파일에서 지정한 쪽만 뽑아 **파일별로 따로** 저장합니다.")
+        if st.button("추출 실행", type="primary", use_container_width=True,
+                     disabled=not files, key="pdf_extract"):
+            if _validate(page_text):
+                results, errors = [], []
+                for f in files:
+                    try:
+                        data, n = extract_to_bytes(f, page_text)
+                        base = os.path.splitext(f.name)[0]
+                        results.append((f"{base}{suffix or '_추출'}.pdf", data, n))
+                    except Exception as e:
+                        errors.append(f"{f.name}: {e}")
+
+                for name, data, n in results:
+                    st.download_button(
+                        f"⬇ {name} ({n}쪽)", data, file_name=name,
+                        mime="application/pdf", key=f"dl_{name}",
+                    )
+
+                if len(results) > 1:
+                    zbuf = io.BytesIO()
+                    with zipfile.ZipFile(zbuf, "w", zipfile.ZIP_DEFLATED) as z:
+                        for name, data, _ in results:
+                            z.writestr(name, data)
+                    st.download_button(
+                        "📦 전체 ZIP으로 받기", zbuf.getvalue(),
+                        file_name="추출결과.zip", mime="application/zip",
+                        type="primary", use_container_width=True, key="pdf_zip",
+                    )
+
+                for e in errors:
+                    st.error(e)
+
+        if not files:
+            st.info("PDF를 업로드하면 활성화됩니다.")
+
+    # ---------------- 병합 ----------------
+    with sub_merge:
+        st.write("선택한 파일을 **위 순서대로** 이어 붙여 한 개의 PDF로 만듭니다.")
+        only_selected = st.checkbox(
+            "합칠 때 각 파일에서 지정한 쪽만 가져오기 (해제하면 전체 쪽)",
+            value=True, key="pdf_only_sel",
+        )
+        add_bm = st.checkbox("파일명으로 북마크(목차) 넣기", value=True, key="pdf_bm")
+        out_name = st.text_input("저장할 파일명", value="합본.pdf", key="pdf_outname")
+
+        if st.button("하나로 합치기", type="primary", use_container_width=True,
+                     disabled=len(files) < 2, key="pdf_merge"):
+            ok = True
+            if only_selected:
+                ok = _validate(page_text)
+            if ok:
+                try:
+                    data, total = merge_to_bytes(
+                        files, page_text if only_selected else None, add_bm
+                    )
+                except Exception as e:
+                    st.error(f"병합 실패: {e}")
+                else:
+                    name = out_name.strip() or "합본.pdf"
+                    if not name.lower().endswith(".pdf"):
+                        name += ".pdf"
+                    st.success(f"{len(files)}개 파일, 총 {total}쪽")
+                    st.download_button(
+                        f"⬇ {name} 다운로드", data, file_name=name,
+                        mime="application/pdf", type="primary",
+                        use_container_width=True, key="pdf_merge_dl",
+                    )
+
+        if len(files) < 2:
+            st.info("2개 이상 업로드하면 활성화됩니다.")
+
+    with st.expander("쪽 번호 입력 방법"):
+        st.markdown(
+            "- `9-12` — 9쪽부터 12쪽까지 (연속 범위)\n"
+            "- `1, 3, 5` — 1쪽, 3쪽, 5쪽만 (낱장)\n"
+            "- `1, 9-12, 20` — 범위와 낱장 혼합\n"
+            "- 범위가 거꾸로여도(`12-9`) 자동 보정되며, 파일 쪽수를 넘는 번호는 무시됩니다.")
+
+
+if __name__ == "__main__":
+    print("이 파일은 모듈입니다. 다음처럼 실행하세요:\n"
+          "    pip install -r requirements.txt\n"
+          "    streamlit run streamlit_app.py")
