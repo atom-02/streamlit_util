@@ -1,2 +1,5 @@
 streamlit
 pypdf
+qrcode[pil]
+reportlab
+python-docx
