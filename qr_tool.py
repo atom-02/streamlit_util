@@ -204,7 +204,13 @@ def _set_table_borderless(table):
     tblPr.append(borders)
 
 
-def _add_hyperlink(paragraph, url, text):
+def _add_hyperlink(paragraph, url, text, color="0563C1", underline=True):
+    """단락에 클릭 가능한 하이퍼링크를 추가한다.
+
+    color/underline 을 지정하지 않으면 기본 하이퍼링크 스타일(파란색 밑줄)을
+    사용하고, color="000000", underline=False 처럼 넘기면 일반 텍스트와
+    똑같은 모양이면서 클릭은 되는 링크를 만들 수 있다.
+    """
     part = paragraph.part
     r_id = part.relate_to(
         url,
@@ -216,12 +222,14 @@ def _add_hyperlink(paragraph, url, text):
 
     run = OxmlElement("w:r")
     rPr = OxmlElement("w:rPr")
-    color = OxmlElement("w:color")
-    color.set(qn("w:val"), "0563C1")
-    rPr.append(color)
-    underline = OxmlElement("w:u")
-    underline.set(qn("w:val"), "single")
-    rPr.append(underline)
+    if color:
+        color_el = OxmlElement("w:color")
+        color_el.set(qn("w:val"), color)
+        rPr.append(color_el)
+    if underline:
+        underline_el = OxmlElement("w:u")
+        underline_el.set(qn("w:val"), "single")
+        rPr.append(underline_el)
     run.append(rPr)
     t = OxmlElement("w:t")
     t.text = text
@@ -233,8 +241,13 @@ def _add_hyperlink(paragraph, url, text):
 def create_qr_docx_bytes(title: str, url: str) -> bytes:
     """제목 / 링크 주소 / QR코드가 담긴 1페이지 워드 문서를 만들어 bytes로 반환한다.
 
-    보이지 않는 표(1행 1열)를 페이지 전체 높이에 걸쳐 배치하고 세로 가운데
-    정렬을 적용해, 내용이 몇 줄이든 위·아래 여백이 항상 균형 있게 나온다.
+    여백·글자 크기·줄바꿈·QR 크기 계산을 PDF 버전(create_qr_pdf_bytes)과
+    완전히 동일한 수치로 맞춰, 두 출력물이 같은 모양으로 보이도록 한다.
+    (reportlab 의 포인트 단위와 python-docx 의 Pt 단위가 동일하므로 계산값을
+    그대로 재사용할 수 있다.) 보이지 않는 표(1행 1열)를 페이지 전체 높이에
+    걸쳐 배치하고 세로 가운데 정렬을 적용해, 내용이 몇 줄이든 위·아래 여백이
+    항상 균형 있게 나온다 — 여백을 상하 대칭으로 두면 PDF의 "전체 블록을
+    페이지 중앙에 배치" 효과와 동일해진다.
     """
     title = (title or "").strip() or "QR 코드"
     url = (url or "").strip()
@@ -242,60 +255,106 @@ def create_qr_docx_bytes(title: str, url: str) -> bytes:
         raise ValueError("링크 주소가 비어 있습니다.")
     url = normalize_url(url)
 
-    page_w_mm, page_h_mm = 210, 297
-    side_margin_mm = 25
-    top_bottom_margin_mm = 12
-    usable_w_mm = page_w_mm - 2 * side_margin_mm
-    usable_h_mm = page_h_mm - 2 * top_bottom_margin_mm
-    qr_size_mm = min(140, usable_w_mm - 10)
+    # ---- PDF 버전과 동일한 레이아웃 상수 / 계산 ----
+    page_w, page_h = A4
+    left_margin = 37 * mm
+    min_margin = 20 * mm
 
+    title_font_size = 32
+    title_line_height = title_font_size * 1.15
+    label_font_size = 18
+    url_font_size = 18
+    gap_title_to_label = 14 * mm
+    gap_label_to_url = 10 * mm
+    url_line_height = 10 * mm
+    gap_url_to_qr = 6 * mm
+
+    max_text_width = page_w - 2 * left_margin
+
+    # 줄바꿈 위치를 PDF와 동일하게 계산하기 위한 측정 전용 캔버스(출력되지 않음)
+    measure_buf = io.BytesIO()
+    mc = canvas.Canvas(measure_buf, pagesize=A4)
+    title_lines = _wrap_text_by_width(mc, title, FONTS["bold"], title_font_size, max_text_width)
+    url_lines = _wrap_text_by_width(mc, url, FONTS["regular"], url_font_size, max_text_width)
+
+    text_height = (
+        len(title_lines) * title_line_height
+        + gap_title_to_label
+        + gap_label_to_url
+        + len(url_lines) * url_line_height
+    )
+
+    desired_qr_size = 150 * mm
+    available_for_qr = page_h - 2 * min_margin - text_height - gap_url_to_qr
+    qr_size = min(desired_qr_size, page_w - 20 * mm, available_for_qr)
+    qr_size = max(qr_size, 40 * mm)
+
+    # ---- 문서 생성 ----
     doc = Document()
     section = doc.sections[0]
-    section.page_width = Mm(page_w_mm)
-    section.page_height = Mm(page_h_mm)
-    section.left_margin = Mm(side_margin_mm)
-    section.right_margin = Mm(side_margin_mm)
-    section.top_margin = Mm(top_bottom_margin_mm)
-    section.bottom_margin = Mm(top_bottom_margin_mm)
+    section.page_width = Pt(page_w)
+    section.page_height = Pt(page_h)
+    section.left_margin = Pt(left_margin)
+    section.right_margin = Pt(left_margin)
+    section.top_margin = Pt(min_margin)
+    section.bottom_margin = Pt(min_margin)
 
+    usable_h = page_h - 2 * min_margin
     table = doc.add_table(rows=1, cols=1)
     table.autofit = False
     row = table.rows[0]
     row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
-    row.height = Mm(usable_h_mm)
+    row.height = Pt(usable_h)
     cell = table.cell(0, 0)
-    cell.width = Mm(usable_w_mm)
+    cell.width = Pt(max_text_width)
     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     _set_table_borderless(table)
 
+    def _line_paragraph(text_line, bold, size, space_after_pt=0):
+        p = cell.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after = Pt(space_after_pt)
+        run = p.add_run(text_line)
+        run.bold = bold
+        run.font.size = Pt(size)
+        return p
+
+    # 제목 (표의 기본 첫 문단을 첫 줄로 재사용)
     p_title = cell.paragraphs[0]
     p_title.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    p_title.paragraph_format.space_after = Pt(18)
-    run_title = p_title.add_run(title)
+    p_title.paragraph_format.space_before = Pt(0)
+    p_title.paragraph_format.space_after = Pt(0)
+    run_title = p_title.add_run(title_lines[0])
     run_title.bold = True
-    run_title.font.size = Pt(26)
+    run_title.font.size = Pt(title_font_size)
+    for line in title_lines[1:]:
+        _line_paragraph(line, True, title_font_size)
+    cell.paragraphs[len(title_lines) - 1].paragraph_format.space_after = Pt(gap_title_to_label)
 
-    p_label = cell.add_paragraph()
-    p_label.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    p_label.paragraph_format.space_after = Pt(6)
-    run_label = p_label.add_run("링크 주소")
-    run_label.bold = True
-    run_label.font.size = Pt(13)
+    # "링크 주소" 라벨
+    _line_paragraph("링크 주소", True, label_font_size, gap_label_to_url)
 
-    p_url = cell.add_paragraph()
-    p_url.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    p_url.paragraph_format.space_after = Pt(18)
-    _add_hyperlink(p_url, url, url)
-    for run in p_url.runs:
-        run.font.size = Pt(13)
+    # 링크 주소 (줄바꿈은 PDF와 동일 · 클릭 가능한 링크는 유지하되
+    # 모양은 PDF처럼 검은색 · 밑줄 없음으로 맞춤)
+    for i, line in enumerate(url_lines):
+        p = cell.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after = Pt(gap_url_to_qr if i == len(url_lines) - 1 else 0)
+        _add_hyperlink(p, url, line, color="000000", underline=False)
+        for run in p.runs:
+            run.font.size = Pt(url_font_size)
 
+    # QR 코드 (가로 중앙, 크기는 PDF와 동일한 방식으로 계산)
     p_qr = cell.add_paragraph()
     p_qr.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_qr.paragraph_format.space_before = Pt(0)
     qr_img = make_qr_image(url)
     img_buf = io.BytesIO()
     qr_img.save(img_buf, format="PNG")
     img_buf.seek(0)
-    p_qr.add_run().add_picture(img_buf, width=Mm(qr_size_mm))
+    p_qr.add_run().add_picture(img_buf, width=Pt(qr_size))
 
     out_buf = io.BytesIO()
     doc.save(out_buf)
