@@ -1,8 +1,9 @@
 """제목 + 링크 주소 + QR코드 안내문 생성기.
 
 streamlit_app.py 에서 render() 를 호출해 사용합니다.
-QR코드는 페이지 가로 중앙에 크게, 제목·링크는 왼쪽 정렬로 배치하며,
-내용 블록이 몇 줄이든 위·아래 여백이 자동으로 균형 있게 맞춰진다.
+QR코드는 페이지 가로 중앙에 크게, 제목은 가운데 정렬, 링크 주소는 왼쪽
+정렬로 배치하며, 내용 블록이 몇 줄이든 위·아래 여백이 자동으로 균형 있게
+맞춰진다.
 """
 import io
 import os
@@ -163,7 +164,7 @@ def create_qr_pdf_bytes(title: str, url: str) -> bytes:
 
     c.setFont(FONTS["bold"], title_font_size)
     for line in title_lines:
-        c.drawString(left_margin, y, line)
+        c.drawCentredString(page_w / 2, y, line)
         y -= title_line_height
 
     y -= gap_title_to_label
@@ -310,9 +311,9 @@ def create_qr_docx_bytes(title: str, url: str) -> bytes:
     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     _set_table_borderless(table)
 
-    def _line_paragraph(text_line, bold, size, space_after_pt=0):
+    def _line_paragraph(text_line, bold, size, space_after_pt=0, alignment=WD_ALIGN_PARAGRAPH.LEFT):
         p = cell.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        p.alignment = alignment
         p.paragraph_format.space_before = Pt(0)
         p.paragraph_format.space_after = Pt(space_after_pt)
         run = p.add_run(text_line)
@@ -320,16 +321,16 @@ def create_qr_docx_bytes(title: str, url: str) -> bytes:
         run.font.size = Pt(size)
         return p
 
-    # 제목 (표의 기본 첫 문단을 첫 줄로 재사용)
+    # 제목 (가운데 정렬 · 표의 기본 첫 문단을 첫 줄로 재사용)
     p_title = cell.paragraphs[0]
-    p_title.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.paragraph_format.space_before = Pt(0)
     p_title.paragraph_format.space_after = Pt(0)
     run_title = p_title.add_run(title_lines[0])
     run_title.bold = True
     run_title.font.size = Pt(title_font_size)
     for line in title_lines[1:]:
-        _line_paragraph(line, True, title_font_size)
+        _line_paragraph(line, True, title_font_size, alignment=WD_ALIGN_PARAGRAPH.CENTER)
     cell.paragraphs[len(title_lines) - 1].paragraph_format.space_after = Pt(gap_title_to_label)
 
     # "링크 주소" 라벨
