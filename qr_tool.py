@@ -1,8 +1,9 @@
 """제목 + 링크 주소 + QR코드 안내문 생성기.
 
 streamlit_app.py 에서 render() 를 호출해 사용합니다.
-QR코드는 페이지 가로 중앙에 크게, 제목·링크는 왼쪽 정렬로 배치하며,
-내용 블록이 몇 줄이든 위·아래 여백이 자동으로 균형 있게 맞춰진다.
+QR코드는 페이지 가로 중앙에 크게, 제목은 크게, 링크 주소는 제목 바로
+아래에 부제목처럼 작고 가깝게 배치하며(왼쪽 정렬), 내용 블록이 몇 줄이든
+위·아래 여백이 자동으로 균형 있게 맞춰진다.
 """
 import io
 import os
@@ -126,14 +127,12 @@ def create_qr_pdf_bytes(title: str, url: str) -> bytes:
     left_margin = 37 * mm
     min_margin = 20 * mm
 
-    title_font_size = 32
+    title_font_size = 40
     title_line_height = title_font_size * 1.15
-    label_font_size = 18
     url_font_size = 18
-    gap_title_to_label = 14 * mm
-    gap_label_to_url = 10 * mm
+    gap_title_to_url = 8 * mm
     url_line_height = 10 * mm
-    gap_url_to_qr = 6 * mm
+    gap_url_to_qr = 18 * mm
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
@@ -146,8 +145,7 @@ def create_qr_pdf_bytes(title: str, url: str) -> bytes:
 
     text_height = (
         len(title_lines) * title_line_height
-        + gap_title_to_label
-        + gap_label_to_url
+        + gap_title_to_url
         + len(url_lines) * url_line_height
     )
 
@@ -166,11 +164,8 @@ def create_qr_pdf_bytes(title: str, url: str) -> bytes:
         c.drawString(left_margin, y, line)
         y -= title_line_height
 
-    y -= gap_title_to_label
-    c.setFont(FONTS["bold"], label_font_size)
-    c.drawString(left_margin, y, "링크 주소")
-
-    y -= gap_label_to_url
+    # 링크 주소를 제목 바로 아래에 부제목처럼 작게, 간격을 좁혀서 배치
+    y -= gap_title_to_url
     c.setFont(FONTS["regular"], url_font_size)
     for line in url_lines:
         c.drawString(left_margin, y, line)
@@ -204,12 +199,15 @@ def _set_table_borderless(table):
     tblPr.append(borders)
 
 
-def _add_hyperlink(paragraph, url, text, color="0563C1", underline=True):
+def _add_hyperlink(paragraph, url, text, color="0563C1", underline=True, size_pt=None):
     """단락에 클릭 가능한 하이퍼링크를 추가한다.
 
     color/underline 을 지정하지 않으면 기본 하이퍼링크 스타일(파란색 밑줄)을
     사용하고, color="000000", underline=False 처럼 넘기면 일반 텍스트와
-    똑같은 모양이면서 클릭은 되는 링크를 만들 수 있다.
+    똑같은 모양이면서 클릭은 되는 링크를 만들 수 있다. 여기서 만드는 런은
+    <w:hyperlink> 안에 직접 XML로 들어가 python-docx의 paragraph.runs 로는
+    보이지 않으므로, 글자 크기가 필요하면 run.font.size 대신 size_pt 로
+    넘겨야 한다.
     """
     part = paragraph.part
     r_id = part.relate_to(
@@ -230,6 +228,10 @@ def _add_hyperlink(paragraph, url, text, color="0563C1", underline=True):
         underline_el = OxmlElement("w:u")
         underline_el.set(qn("w:val"), "single")
         rPr.append(underline_el)
+    if size_pt is not None:
+        sz_el = OxmlElement("w:sz")
+        sz_el.set(qn("w:val"), str(int(size_pt * 2)))  # OOXML은 half-point 단위
+        rPr.append(sz_el)
     run.append(rPr)
     t = OxmlElement("w:t")
     t.text = text
@@ -260,14 +262,12 @@ def create_qr_docx_bytes(title: str, url: str) -> bytes:
     left_margin = 37 * mm
     min_margin = 20 * mm
 
-    title_font_size = 32
+    title_font_size = 40
     title_line_height = title_font_size * 1.15
-    label_font_size = 18
     url_font_size = 18
-    gap_title_to_label = 14 * mm
-    gap_label_to_url = 10 * mm
+    gap_title_to_url = 8 * mm
     url_line_height = 10 * mm
-    gap_url_to_qr = 6 * mm
+    gap_url_to_qr = 18 * mm
 
     max_text_width = page_w - 2 * left_margin
 
@@ -279,8 +279,7 @@ def create_qr_docx_bytes(title: str, url: str) -> bytes:
 
     text_height = (
         len(title_lines) * title_line_height
-        + gap_title_to_label
-        + gap_label_to_url
+        + gap_title_to_url
         + len(url_lines) * url_line_height
     )
 
@@ -330,21 +329,17 @@ def create_qr_docx_bytes(title: str, url: str) -> bytes:
     run_title.font.size = Pt(title_font_size)
     for line in title_lines[1:]:
         _line_paragraph(line, True, title_font_size)
-    cell.paragraphs[len(title_lines) - 1].paragraph_format.space_after = Pt(gap_title_to_label)
+    cell.paragraphs[len(title_lines) - 1].paragraph_format.space_after = Pt(gap_title_to_url)
 
-    # "링크 주소" 라벨
-    _line_paragraph("링크 주소", True, label_font_size, gap_label_to_url)
-
-    # 링크 주소 (줄바꿈은 PDF와 동일 · 클릭 가능한 링크는 유지하되
-    # 모양은 PDF처럼 검은색 · 밑줄 없음으로 맞춤)
+    # 링크 주소를 제목 바로 아래에 부제목처럼 작게, 간격을 좁혀서 배치
+    # (줄바꿈은 PDF와 동일 · 클릭 가능한 링크는 유지하되 모양은 PDF처럼
+    # 검은색 · 밑줄 없음으로 맞춤)
     for i, line in enumerate(url_lines):
         p = cell.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.LEFT
         p.paragraph_format.space_before = Pt(0)
         p.paragraph_format.space_after = Pt(gap_url_to_qr if i == len(url_lines) - 1 else 0)
-        _add_hyperlink(p, url, line, color="000000", underline=False)
-        for run in p.runs:
-            run.font.size = Pt(url_font_size)
+        _add_hyperlink(p, url, line, color="000000", underline=False, size_pt=url_font_size)
 
     # QR 코드 (가로 중앙, 크기는 PDF와 동일한 방식으로 계산)
     p_qr = cell.add_paragraph()
