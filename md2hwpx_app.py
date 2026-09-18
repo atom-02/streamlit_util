@@ -1,14 +1,19 @@
-"""Markdown (+LaTeX) -> HWPX converter.
+"""Markdown (+LaTeX, +이미지) -> HWPX converter.
 
 streamlit_app.py 에서 render() 를 호출해 사용합니다.
 HWPX 변환은 파이썬 표준 라이브러리만 사용하며, 기본 HWPX 템플릿은
-아래에 base64 로 내장되어 있습니다.
+아래에 base64 로 내장되어 있습니다. 업로드된 파일(마크다운/이미지)은 디스크에 쓰지 않고
+메모리에서만 처리됩니다.
 
 [이식 기능]
 - 5지선다 보기(①~⑤)를 문항(점수) 다음 줄로 자동 분리 (SPLIT_CHOICES)
 - 문항과 문항 사이에 빈 줄 자동 삽입 (GAP_BETWEEN_QUESTIONS)
+- 수식 델리미터 확장: `$...$`/`$$...$$` 외에 ChatGPT 등 AI가 흔히 쓰는 `\\(...\\)`(인라인),
+  `\\[...\\]`(디스플레이) 델리미터도 인식
+- 이미지 인라인 삽입: `![설명](파일명)` 마크다운 문법 + 같은 이름의 업로드된 이미지 파일을
+  매칭해 편집 가능한 실제 그림 개체(hp:pic)로 삽입 (플레이스홀더가 아님)
 """
-import base64, html, io, os, re, zipfile
+import base64, hashlib, html, io, os, re, zipfile
 
 # --- 이식 기능 스위치 -------------------------------------------------------
 SPLIT_CHOICES = True          # ①②③④⑤ 보기를 문항 다음 줄로 내림
@@ -144,6 +149,9 @@ def latex_to_hwp(src):
 # ===========================================================================
 # 2.  Markdown parsing
 # ===========================================================================
+_IMG_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
+
+
 def parse_markdown(text):
     blocks, lines = [], text.replace("\r\n", "\n").split("\n")
     i = 0
@@ -152,6 +160,9 @@ def parse_markdown(text):
         st = line.strip()
         if not st:
             i += 1; continue
+        m_img = _IMG_RE.match(st)
+        if m_img:
+            blocks.append(("img", m_img.group(1), m_img.group(2).strip())); i += 1; continue
         if re.match(r"^-{3,}$", st):
             blocks.append(("hr",)); i += 1; continue
         if st.startswith("|"):
@@ -164,13 +175,24 @@ def parse_markdown(text):
             while buf.count("$$") < 2 and i + 1 < len(lines):
                 i += 1; buf += "\n" + lines[i].strip()
             blocks.append(("eq", buf.strip()[2:-2].strip())); i += 1; continue
+        if st.startswith("\\["):
+            # ChatGPT류 AI가 흔히 쓰는 디스플레이 수식 델리미터: \[ ... \]
+            buf = st
+            while "\\]" not in buf and i + 1 < len(lines):
+                i += 1; buf += "\n" + lines[i].strip()
+            content = buf.strip()
+            if content.startswith("\\["):
+                content = content[2:]
+            if content.endswith("\\]"):
+                content = content[:-2]
+            blocks.append(("eq", content.strip())); i += 1; continue
         m = re.match(r"^(#{1,6})\s+(.*)$", line)
         if m:
             blocks.append(("h", len(m.group(1)), m.group(2).strip())); i += 1; continue
         para = [line]; i += 1
         while i < len(lines):
             nx = lines[i].strip()
-            if not nx or nx.startswith(("#", "$$", "|")) or re.match(r"^-{3,}$", nx):
+            if not nx or nx.startswith(("#", "$$", "|", "\\[")) or re.match(r"^-{3,}$", nx) or _IMG_RE.match(nx):
                 break
             para.append(lines[i].rstrip()); i += 1
         blocks.append(("p", parse_inline(" ".join(para))))
@@ -182,15 +204,27 @@ def parse_table(rows):
     return [r for r in cells if not all(re.match(r"^:?-{2,}:?$", c or "-") for c in r)]
 
 
+# 인라인 수식 델리미터: $...$ (LaTeX 표준) 또는 \(...\) (ChatGPT 등 AI가 흔히 씀)
+_INLINE_MATH_RE = re.compile(r"\$(?!\$)(.+?)(?<!\$)\$|\\\((.+?)\\\)", re.S)
+
+
+def _append_text_runs(runs, part):
+    for j, seg in enumerate(re.split(r"\*\*", part)):
+        if seg:
+            runs.append(("b", seg) if j % 2 == 1 else ("t", seg))
+
+
 def parse_inline(text):
     runs = []
-    for idx, part in enumerate(re.split(r"(?<!\$)\$(?!\$)", text)):
-        if idx % 2 == 1:
-            runs.append(("eq", part.strip()))
-        else:
-            for j, seg in enumerate(re.split(r"\*\*", part)):
-                if seg:
-                    runs.append(("b", seg) if j % 2 == 1 else ("t", seg))
+    pos = 0
+    for m in _INLINE_MATH_RE.finditer(text):
+        if m.start() > pos:
+            _append_text_runs(runs, text[pos:m.start()])
+        eq_content = m.group(1) if m.group(1) is not None else m.group(2)
+        runs.append(("eq", eq_content.strip()))
+        pos = m.end()
+    if pos < len(text):
+        _append_text_runs(runs, text[pos:])
     return runs
 
 
@@ -258,10 +292,104 @@ def transform_blocks(blocks, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTI
 # ===========================================================================
 # 3.  HWPX emission
 # ===========================================================================
-_eq_id, _obj_id, _pid = 1200000000, 1300000000, 100
+_eq_id, _obj_id, _pid, _pic_id = 1200000000, 1300000000, 100, 1400000000
+_images = []   # [(item_id, bindata_name, media_type, raw_bytes), ...] -- reset per convert call
+
+# HWPUNIT: 1/7200 inch. 그림 표시 크기(sz/orgSz/imgRect)는 mm 기준,
+# imgClip/imgDim 은 "이미지 원본 픽셀을 96dpi로 가정한" HWPUNIT 기준.
+# (실제 한글이 저장한 hwpx를 역공학해서 확인한 값)
+HWPUNIT_PER_MM = 7200 / 25.4
+HWPUNIT_PER_PX96 = 7200 / 96
+
 
 def esc(s):
     return html.escape(s, quote=True)
+
+
+def _image_size(raw):
+    """이미지 바이트의 헤더만 읽어서 (width_px, height_px, ext) 를 돌려준다. (외부 라이브러리 불필요)"""
+    head = raw[:32]
+    if head[:8] == b"\x89PNG\r\n\x1a\n":
+        w = int.from_bytes(head[16:20], "big")
+        h = int.from_bytes(head[20:24], "big")
+        return w, h, "png"
+    if head[:2] == b"\xff\xd8":
+        pos = 2
+        while pos + 4 <= len(raw):
+            if raw[pos] != 0xFF:
+                break
+            marker = raw[pos + 1]
+            pos += 2
+            if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
+                          0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+                h = int.from_bytes(raw[pos + 3:pos + 5], "big")
+                w = int.from_bytes(raw[pos + 5:pos + 7], "big")
+                return w, h, "jpg"
+            seglen = int.from_bytes(raw[pos:pos + 2], "big")
+            pos += seglen
+        raise ValueError("JPEG SOF marker를 찾지 못했습니다")
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        w = int.from_bytes(head[6:8], "little")
+        h = int.from_bytes(head[8:10], "little")
+        return w, h, "gif"
+    if head[:2] == b"BM":
+        w = int.from_bytes(head[18:22], "little")
+        h = abs(int.from_bytes(head[22:26], "little", signed=True))
+        return w, h, "bmp"
+    raise ValueError("지원하지 않는 이미지 형식입니다 (PNG/JPEG/GIF/BMP만 지원)")
+
+
+_MEDIA_TYPE = {"png": "image/png", "jpg": "image/jpeg", "gif": "image/gif", "bmp": "image/bmp"}
+
+
+def picture_xml(raw, filename, width_mm=None, max_width_mm=150.0):
+    global _pic_id
+    px_w, px_h, ext = _image_size(raw)
+
+    if width_mm is None:
+        width_mm = max_width_mm
+    width_mm = min(width_mm, max_width_mm)
+    height_mm = width_mm * px_h / px_w
+
+    idx = len(_images) + 1
+    item_id = f"image{idx}"
+    bindata_name = f"BinData/image{idx}.{ext}"
+    _images.append((item_id, bindata_name, _MEDIA_TYPE[ext], raw))
+
+    _pic_id += 3
+    inst_id = _pic_id + 1
+    w = round(width_mm * HWPUNIT_PER_MM)
+    h = round(height_mm * HWPUNIT_PER_MM)
+    cw = round(px_w * HWPUNIT_PER_PX96)
+    ch = round(px_h * HWPUNIT_PER_PX96)
+
+    return (
+        f'<hp:run charPrIDRef="0"><hp:pic id="{_pic_id}" zOrder="0" numberingType="PICTURE" '
+        f'textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" href="" '
+        f'groupLevel="0" instid="{inst_id}" reverse="0">'
+        f'<hp:offset x="0" y="0"/>'
+        f'<hp:orgSz width="{w}" height="{h}"/>'
+        f'<hp:curSz width="0" height="0"/>'
+        f'<hp:flip horizontal="0" vertical="0"/>'
+        f'<hp:rotationInfo angle="0" centerX="{w // 2}" centerY="{h // 2}" rotateimage="1"/>'
+        f'<hp:renderingInfo><hc:transMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/>'
+        f'<hc:scaMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/>'
+        f'<hc:rotMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/></hp:renderingInfo>'
+        f'<hc:img binaryItemIDRef="{item_id}" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/>'
+        f'<hp:imgRect><hc:pt0 x="0" y="0"/><hc:pt1 x="{w}" y="0"/>'
+        f'<hc:pt2 x="{w}" y="{h}"/><hc:pt3 x="0" y="{h}"/></hp:imgRect>'
+        f'<hp:imgClip left="0" right="{cw}" top="0" bottom="{ch}"/>'
+        f'<hp:inMargin left="0" right="0" top="0" bottom="0"/>'
+        f'<hp:imgDim dimwidth="{cw}" dimheight="{ch}"/>'
+        f'<hp:effects/>'
+        f'<hp:sz width="{w}" widthRelTo="ABSOLUTE" height="{h}" heightRelTo="ABSOLUTE" protect="0"/>'
+        f'<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" '
+        f'holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" '
+        f'vertOffset="0" horzOffset="0"/>'
+        f'<hp:outMargin left="0" right="0" top="0" bottom="0"/>'
+        f'<hp:shapeComment>{esc(filename)}</hp:shapeComment>'
+        f'</hp:pic><hp:t/></hp:run>'
+    )
 
 
 def equation_xml(latex):
@@ -374,7 +502,8 @@ def table_xml(cells):
     return f'<hp:run charPrIDRef="0">{"".join(parts)}</hp:run>'
 
 
-def build_body(blocks):
+def build_body(blocks, images=None):
+    images = images or {}
     out = []
     for b in blocks:
         if b[0] == "h":
@@ -388,6 +517,18 @@ def build_body(blocks):
             out.append(paragraph([table_xml(b[1])]))
         elif b[0] == "p":
             out.append(paragraph(runs_from_inline(b[1])))
+        elif b[0] == "img":
+            alt, ref = b[1], b[2]
+            name = os.path.basename(ref)
+            raw = images.get(name)
+            if raw is None:
+                out.append(paragraph([text_run(f"[이미지를 찾을 수 없습니다: {alt or ref} "
+                                                f"— 같은 이름의 이미지 파일을 함께 업로드하세요]")]))
+            else:
+                try:
+                    out.append(paragraph([picture_xml(raw, name)]))
+                except ValueError as e:
+                    out.append(paragraph([text_run(f"[이미지 삽입 실패: {alt or name} - {e}]")]))
     return "".join(out)
 
 
@@ -444,19 +585,42 @@ def patch_header(header):
 # ===========================================================================
 #  In-memory conversion (no filesystem) — ideal for Streamlit Cloud
 # ===========================================================================
-def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTIONS):
-    """Convert markdown text -> HWPX bytes. Returns (data, n_blocks, n_equations)."""
+def _hashkey(raw):
+    """content.hpf manifest item의 hashkey 속성값.
+    실제 한글이 어떤 알고리즘을 쓰는지는 알 수 없지만(리버스엔지니어링으로 MD5가 아님을 확인),
+    실제로 한글에서 임의값으로도 정상적으로 열리는 것을 확인했다(강제 검증됨) —
+    그래도 재현 가능하도록 내용 기반 MD5를 써 둔다."""
+    return base64.b64encode(hashlib.md5(raw).digest()).decode()
+
+
+def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTIONS, images=None):
+    """Convert markdown text -> HWPX bytes. images: {파일명: bytes} (선택). Returns (data, n_blocks, n_equations)."""
+    global _images
+    _images = []  # 호출마다 초기화 (같은 프로세스에서 여러 번 변환해도 이미지 번호가 섞이지 않도록)
+
     base = zipfile.ZipFile(io.BytesIO(base64.b64decode(_BASE_ZIP_B64)))
     files = {name: base.read(name) for name in base.namelist()}
 
     blocks = parse_markdown(md_text)
     blocks = transform_blocks(blocks, split_choices=split_choices, gap=gap)
-    body = build_body(blocks)
+    body = build_body(blocks, images=images)
     base_sec = files["Contents/section0.xml"].decode("utf-8")
     first_end = base_sec.index("</hp:p>") + len("</hp:p>")
     files["Contents/section0.xml"] = (base_sec[:first_end] + body + "\n</hs:sec>\n").encode("utf-8")
     files["Contents/header.xml"] = patch_header(
         files["Contents/header.xml"].decode("utf-8")).encode("utf-8")
+
+    if _images:
+        for item_id, bindata_name, media_type, raw in _images:
+            files[bindata_name] = raw
+        hpf = files["Contents/content.hpf"].decode("utf-8")
+        items_xml = "".join(
+            f'<opf:item id="{item_id}" href="{bindata_name}" media-type="{media_type}" '
+            f'isEmbeded="1" hashkey="{esc(_hashkey(raw))}"/>'
+            for item_id, bindata_name, media_type, raw in _images
+        )
+        hpf = hpf.replace("</opf:manifest>", items_xml + "</opf:manifest>", 1)
+        files["Contents/content.hpf"] = hpf.encode("utf-8")
 
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as z:
@@ -491,7 +655,8 @@ def render():
 
     st.subheader("📄 Markdown → HWPX 변환기")
     st.caption("LaTeX 수식이 포함된 마크다운(.md)을 한글(HWPX) 문서로 변환합니다. "
-               "수식은 편집 가능한 한글 수식 개체로 들어갑니다.")
+               "수식은 편집 가능한 한글 수식 개체로 들어갑니다. "
+               "`![설명](파일명)` 이미지 문법도 편집 가능한 그림 개체로 삽입됩니다.")
 
     with st.expander("변환 옵션", expanded=False):
         split_choices = st.checkbox("5지선다 보기(①~⑤)를 문항 다음 줄로", value=SPLIT_CHOICES,
@@ -518,6 +683,11 @@ def render():
             if src_name == "output":
                 src_name = "document"
 
+    img_files = st.file_uploader(
+        "이미지 파일 (마크다운에서 `![설명](파일명)` 으로 참조한 것과 같은 이름이어야 합니다)",
+        type=["png", "jpg", "jpeg", "gif", "bmp"], accept_multiple_files=True, key="md_images")
+    images = {f.name: f.getvalue() for f in (img_files or [])}
+
     out_name = st.text_input("출력 파일 이름", value=f"{src_name}.hwpx", key="md_outname")
 
     if st.button("변환하기", type="primary", disabled=(md_text is None),
@@ -526,7 +696,8 @@ def render():
         if not name.lower().endswith(".hwpx"):
             name += ".hwpx"
         try:
-            data, nb, ne = convert_md_to_hwpx_bytes(md_text, split_choices=split_choices, gap=gap)
+            data, nb, ne = convert_md_to_hwpx_bytes(md_text, split_choices=split_choices, gap=gap,
+                                                     images=images)
         except Exception as e:
             st.error(f"변환 중 오류가 발생했습니다: {e}")
             st.exception(e)
@@ -540,8 +711,10 @@ def render():
 
     with st.expander("지원 범위 / 참고"):
         st.markdown(
-            "- **수식**: 인라인 `$...$`, 디스플레이 `$$...$$` (LaTeX)\n"
+            "- **수식**: 인라인 `$...$` / `\\(...\\)`, 디스플레이 `$$...$$` / `\\[...\\]` (LaTeX)\n"
             "- **서식**: 제목(`#`~`######`), **굵게**, 가로줄(`---`), 표(`|...|`)\n"
+            "- **이미지**: `![설명](파일명)` — 같은 이름의 이미지 파일을 위에서 함께 업로드하면 "
+            "편집 가능한 그림 개체로 삽입됩니다 (PNG/JPEG/GIF/BMP)\n"
             "- **문항 정리**: 5지선다 보기 줄바꿈, 문항 사이 빈 줄 (옵션에서 조절)\n"
             "- 출력은 HWPX 형식이며 한글 2014 이상에서 열립니다.\n"
             "- 아주 복잡한 수식(조건식 `cases` 등)은 열어서 한 번 확인을 권장합니다.")
