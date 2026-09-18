@@ -35,12 +35,12 @@ LaTeX 수식이 포함된 마크다운(.md)을 한글(HWPX) 문서로 변환합�
 - 쪽 지정: `9-12`(범위), `1, 3, 5`(낱장), `1, 9-12, 20`(혼합)
 
 ### 🔗 QR코드 안내문 생성기
-제목과 링크 주소를 입력하면 QR코드가 담긴 안내문을 PDF 또는 워드(.docx)로 만듭니다.
+제목과 링크 주소를 입력하면 QR코드가 담긴 안내문을 PDF 또는 한글(.hwpx)로 만듭니다.
 
 - 제목은 크게, 링크 주소는 제목 바로 아래에 부제목처럼 작고 가깝게 배치(왼쪽 정렬), QR코드는 페이지 가로 중앙에 크게 배치
 - 내용 길이와 상관없이 위·아래 여백이 자동으로 균형 있게 맞춰짐
-- PDF와 워드 문서는 여백·글자 크기·QR 크기까지 같은 계산식을 써서 동일한 모양으로 생성됨
-- 워드 문서의 링크는 클릭은 가능하되 PDF처럼 검은색·밑줄 없는 일반 텍스트 모양으로 삽입됨
+- PDF와 한글 문서는 여백·글자 크기·QR 크기까지 같은 계산식을 써서 동일한 모양으로 생성됨
+- 한글 문서의 제목·링크는 편집 가능한 글자, QR코드는 그림 개체로 들어감 (링크는 일반 글자, 클릭 링크 아님)
 
 ## 로컬 실행
 
@@ -66,8 +66,8 @@ streamlit_app.py    메인 진입점 (탭으로 세 도구 전환)
 md2hwpx_app.py      Markdown → HWPX 변환 로직 + UI (render())
 capture_tool.py     시험지 문항 캡처 → 2단 HWPX 로직 + UI (render(), md2hwpx_app 재사용)
 pdf_tool.py         PDF 추출·병합 로직 + UI (render())
-qr_tool.py          QR코드 안내문(PDF/워드) 생성 로직 + UI (render())
-requirements.txt    streamlit, pypdf, pymupdf, qrcode[pil], reportlab, python-docx
+qr_tool.py          QR코드 안내문(PDF/한글) 생성 로직 + UI (render(), md2hwpx_app 재사용)
+requirements.txt    streamlit, pypdf, pymupdf, qrcode[pil], reportlab
 packages.txt        fonts-nanum (PDF에 한글을 임베드하기 위한 apt 패키지)
 ```
 

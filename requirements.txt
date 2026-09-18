@@ -3,4 +3,3 @@ pypdf
 pymupdf
 qrcode[pil]
 reportlab
-python-docx

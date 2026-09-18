@@ -6,7 +6,6 @@ streamlit_app.py 에서 render() 를 호출해 사용합니다.
 없는 대신 원본 모양이 그대로 유지됩니다. 모든 처리는 메모리에서만 하고 디스크에 쓰지 않습니다.
 HWPX 생성은 md2hwpx_app 의 그림 삽입/패키징 코드를 재사용합니다.
 """
-import base64
 import io
 import os
 import re
@@ -149,24 +148,23 @@ def plan_document(questions, section_names, add_type_headings, short_answer_from
     return items
 
 
-def _section_xml(base_sec, body, page_mm, gap_lines, divider):
-    first_end = base_sec.index("</hp:p>") + len("</hp:p>")
-    head = base_sec[:first_end]
+def _patch_section(sec, page_mm, divider):
+    """구역 설정(첫 문단)의 용지·여백·단 설정을 덮어쓴다. 첫 문단에만 있으므로 count=1 로 충분."""
     w, h = page_mm
-    head = re.sub(r'<hp:pagePr [^>]*>',
-                  f'<hp:pagePr landscape="WIDELY" width="{round(w*MM)}" height="{round(h*MM)}" gutterType="LEFT_ONLY">',
-                  head, count=1)
-    head = re.sub(r'<hp:margin [^>]*/>',
-                  f'<hp:margin header="{round(HEADER_FOOTER_MM*MM)}" footer="{round(HEADER_FOOTER_MM*MM)}" gutter="0" '
-                  f'left="{round(MARGIN_LR_MM*MM)}" right="{round(MARGIN_LR_MM*MM)}" '
-                  f'top="{round(MARGIN_TB_MM*MM)}" bottom="{round(MARGIN_TB_MM*MM)}"/>',
-                  head, count=1)
+    sec = re.sub(r'<hp:pagePr [^>]*>',
+                 f'<hp:pagePr landscape="WIDELY" width="{round(w*MM)}" height="{round(h*MM)}" gutterType="LEFT_ONLY">',
+                 sec, count=1)
+    sec = re.sub(r'<hp:margin [^>]*/>',
+                 f'<hp:margin header="{round(HEADER_FOOTER_MM*MM)}" footer="{round(HEADER_FOOTER_MM*MM)}" gutter="0" '
+                 f'left="{round(MARGIN_LR_MM*MM)}" right="{round(MARGIN_LR_MM*MM)}" '
+                 f'top="{round(MARGIN_TB_MM*MM)}" bottom="{round(MARGIN_TB_MM*MM)}"/>',
+                 sec, count=1)
     col_line = '<hp:colLine type="SOLID" width="0.12 mm" color="#000000"/>' if divider else ""
-    head = re.sub(r'<hp:colPr [^>]*/>',
-                  f'<hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="{COL_COUNT}" sameSz="1" '
-                  f'sameGap="{round(COL_GAP_MM*MM)}">{col_line}</hp:colPr>',
-                  head, count=1)
-    return head + body + "\n</hs:sec>\n"
+    sec = re.sub(r'<hp:colPr [^>]*/>',
+                 f'<hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="{COL_COUNT}" sameSz="1" '
+                 f'sameGap="{round(COL_GAP_MM*MM)}">{col_line}</hp:colPr>',
+                 sec, count=1)
+    return sec
 
 
 def build_hwpx(items, paper_label, gap_lines, divider):
@@ -175,7 +173,7 @@ def build_hwpx(items, paper_label, gap_lines, divider):
     col_w = (page_mm[0] - 2 * MARGIN_LR_MM - COL_GAP_MM * (COL_COUNT - 1)) / COL_COUNT
     img_w = col_w - 1
 
-    m._images = []
+    m.reset_images()
     body = []
     first_h1 = True
     for kind, val in items:
@@ -192,30 +190,7 @@ def build_hwpx(items, paper_label, gap_lines, divider):
             body.append(m.paragraph([m.picture_xml(png, name, max_width_mm=img_w)]))
             body.extend(m.paragraph([m.text_run("")]) for _ in range(gap_lines))
 
-    base = zipfile.ZipFile(io.BytesIO(base64.b64decode(m._BASE_ZIP_B64)))
-    files = {name: base.read(name) for name in base.namelist()}
-    files["Contents/section0.xml"] = _section_xml(
-        files["Contents/section0.xml"].decode("utf-8"), "".join(body), page_mm, gap_lines, divider).encode("utf-8")
-    files["Contents/header.xml"] = m.patch_header(files["Contents/header.xml"].decode("utf-8")).encode("utf-8")
-
-    for item_id, bindata_name, media_type, raw in m._images:
-        files[bindata_name] = raw
-    hpf = files["Contents/content.hpf"].decode("utf-8")
-    items_xml = "".join(
-        f'<opf:item id="{item_id}" href="{bindata_name}" media-type="{media_type}" '
-        f'isEmbeded="1" hashkey="{m.esc(m._hashkey(raw))}"/>'
-        for item_id, bindata_name, media_type, raw in m._images)
-    files["Contents/content.hpf"] = hpf.replace("</opf:manifest>", items_xml + "</opf:manifest>", 1).encode("utf-8")
-
-    out = io.BytesIO()
-    with zipfile.ZipFile(out, "w") as z:
-        zi = zipfile.ZipInfo("mimetype")
-        zi.compress_type = zipfile.ZIP_STORED
-        z.writestr(zi, files["mimetype"])
-        for name, raw in files.items():
-            if name != "mimetype":
-                z.writestr(name, raw, compress_type=zipfile.ZIP_DEFLATED)
-    return out.getvalue()
+    return m.package_hwpx("".join(body), section_patch=lambda sec: _patch_section(sec, page_mm, divider))
 
 
 def crops_zip(items):

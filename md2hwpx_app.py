@@ -593,22 +593,32 @@ def _hashkey(raw):
     return base64.b64encode(hashlib.md5(raw).digest()).decode()
 
 
-def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTIONS, images=None):
-    """Convert markdown text -> HWPX bytes. images: {파일명: bytes} (선택). Returns (data, n_blocks, n_equations)."""
+def reset_images():
+    """picture_xml 이 모으는 그림 목록 초기화. 본문 XML을 만들기 전에 호출한다
+    (같은 프로세스에서 여러 번 변환해도 이미지 번호가 섞이지 않도록)."""
     global _images
-    _images = []  # 호출마다 초기화 (같은 프로세스에서 여러 번 변환해도 이미지 번호가 섞이지 않도록)
+    _images = []
 
+
+def package_hwpx(body_xml, section_patch=None, header_patch=None):
+    """본문 XML(hp:p 문단들) -> HWPX bytes.
+    내장 템플릿의 첫 문단(구역 설정) 뒤에 body_xml 을 붙이고, patch_header 를 적용한 뒤,
+    picture_xml 로 모아 둔 그림을 BinData/ 와 manifest 에 넣어 zip 으로 묶는다.
+    section_patch / header_patch: 완성된 section0.xml / header.xml 문자열을 받아 고친 문자열을 돌려주는 함수(선택)."""
     base = zipfile.ZipFile(io.BytesIO(base64.b64decode(_BASE_ZIP_B64)))
     files = {name: base.read(name) for name in base.namelist()}
 
-    blocks = parse_markdown(md_text)
-    blocks = transform_blocks(blocks, split_choices=split_choices, gap=gap)
-    body = build_body(blocks, images=images)
     base_sec = files["Contents/section0.xml"].decode("utf-8")
     first_end = base_sec.index("</hp:p>") + len("</hp:p>")
-    files["Contents/section0.xml"] = (base_sec[:first_end] + body + "\n</hs:sec>\n").encode("utf-8")
-    files["Contents/header.xml"] = patch_header(
-        files["Contents/header.xml"].decode("utf-8")).encode("utf-8")
+    sec = base_sec[:first_end] + body_xml + "\n</hs:sec>\n"
+    if section_patch:
+        sec = section_patch(sec)
+    files["Contents/section0.xml"] = sec.encode("utf-8")
+
+    header = patch_header(files["Contents/header.xml"].decode("utf-8"))
+    if header_patch:
+        header = header_patch(header)
+    files["Contents/header.xml"] = header.encode("utf-8")
 
     if _images:
         for item_id, bindata_name, media_type, raw in _images:
@@ -632,10 +642,18 @@ def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES, gap=GAP_BETWE
             if name == "mimetype":
                 continue
             z.writestr(name, files[name], compress_type=zipfile.ZIP_DEFLATED)
+    return out.getvalue()
 
+
+def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTIONS, images=None):
+    """Convert markdown text -> HWPX bytes. images: {파일명: bytes} (선택). Returns (data, n_blocks, n_equations)."""
+    reset_images()
+    blocks = parse_markdown(md_text)
+    blocks = transform_blocks(blocks, split_choices=split_choices, gap=gap)
+    data = package_hwpx(build_body(blocks, images=images))
     n_eq = sum(1 for b in blocks if b[0] == "eq") + sum(
         1 for b in blocks if b[0] == "p" for k, _ in b[1] if k == "eq")
-    return out.getvalue(), len(blocks), n_eq
+    return data, len(blocks), n_eq
 
 
 def _decode(raw):

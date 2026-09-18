@@ -1,4 +1,4 @@
-"""제목 + 링크 주소 + QR코드 안내문 생성기.
+"""제목 + 링크 주소 + QR코드 안내문 생성기 (PDF / 한글 HWPX).
 
 streamlit_app.py 에서 render() 를 호출해 사용합니다.
 QR코드는 페이지 가로 중앙에 크게, 제목은 크게, 링크 주소는 제목 바로
@@ -17,12 +17,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
-from docx import Document
-from docx.shared import Mm, Pt
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_ALIGN_VERTICAL, WD_ROW_HEIGHT_RULE
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
+import md2hwpx_app as hwpx
 
 
 # ===========================================================================
@@ -186,70 +181,66 @@ def create_qr_pdf_bytes(title: str, url: str) -> bytes:
 
 
 # ===========================================================================
-#  워드(.docx) 생성
+#  한글(.hwpx) 생성
 # ===========================================================================
-def _set_table_borderless(table):
-    tbl = table._tbl
-    tblPr = tbl.tblPr
-    borders = OxmlElement("w:tblBorders")
-    for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
-        el = OxmlElement(f"w:{edge}")
-        el.set(qn("w:val"), "nil")
-        borders.append(el)
-    tblPr.append(borders)
+PT = 7200 / 72  # HWPUNIT per point (HWPUNIT = 1/7200 inch)
+
+# md2hwpx_app 의 내장 템플릿에 이 도구용 글자/문단 모양을 덧붙일 때 쓰는 id
+_CP_TITLE, _CP_URL = 10, 11          # patch_header 가 7~9 를 쓰므로 그 다음부터
+_PP_TITLE, _PP_URL, _PP_QR = 20, 21, 22  # 템플릿 paraPr 는 0~19
 
 
-def _add_hyperlink(paragraph, url, text, color="0563C1", underline=True, size_pt=None):
-    """단락에 클릭 가능한 하이퍼링크를 추가한다.
-
-    color/underline 을 지정하지 않으면 기본 하이퍼링크 스타일(파란색 밑줄)을
-    사용하고, color="000000", underline=False 처럼 넘기면 일반 텍스트와
-    똑같은 모양이면서 클릭은 되는 링크를 만들 수 있다. 여기서 만드는 런은
-    <w:hyperlink> 안에 직접 XML로 들어가 python-docx의 paragraph.runs 로는
-    보이지 않으므로, 글자 크기가 필요하면 run.font.size 대신 size_pt 로
-    넘겨야 한다.
-    """
-    part = paragraph.part
-    r_id = part.relate_to(
-        url,
-        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
-        is_external=True,
-    )
-    hyperlink = OxmlElement("w:hyperlink")
-    hyperlink.set(qn("r:id"), r_id)
-
-    run = OxmlElement("w:r")
-    rPr = OxmlElement("w:rPr")
-    if color:
-        color_el = OxmlElement("w:color")
-        color_el.set(qn("w:val"), color)
-        rPr.append(color_el)
-    if underline:
-        underline_el = OxmlElement("w:u")
-        underline_el.set(qn("w:val"), "single")
-        rPr.append(underline_el)
-    if size_pt is not None:
-        sz_el = OxmlElement("w:sz")
-        sz_el.set(qn("w:val"), str(int(size_pt * 2)))  # OOXML은 half-point 단위
-        rPr.append(sz_el)
-    run.append(rPr)
-    t = OxmlElement("w:t")
-    t.text = text
-    run.append(t)
-    hyperlink.append(run)
-    paragraph._p.append(hyperlink)
+def _make_parapr(pp0, pid, align, line_pct, next_pt, snap=False):
+    """템플릿의 paraPr id=0 을 복제해 정렬 / 줄간격(%) / 문단 아래 간격(pt)만 바꾼 paraPr XML."""
+    s = re.sub(r'id="0"', f'id="{pid}"', pp0, count=1)
+    s = s.replace('snapToGrid="1"', f'snapToGrid="{1 if snap else 0}"', 1)
+    s = re.sub(r'<hh:align horizontal="[A-Z]+"', f'<hh:align horizontal="{align}"', s, count=1)
+    s = re.sub(r'<hh:lineSpacing type="PERCENT" value="\d+"',
+               f'<hh:lineSpacing type="PERCENT" value="{line_pct}"', s)          # switch 의 case/default 둘 다
+    s = re.sub(r'<hc:next value="0"', f'<hc:next value="{round(next_pt * PT)}"', s)
+    return s
 
 
-def create_qr_docx_bytes(title: str, url: str) -> bytes:
-    """제목 / 링크 주소 / QR코드가 담긴 1페이지 워드 문서를 만들어 bytes로 반환한다.
+def _qr_header_patch(title_pt, url_pt, gap_title_to_url_pt, gap_url_to_qr_pt):
+    def patch(header):
+        cp0 = re.search(r'<hh:charPr id="0".*?</hh:charPr>', header, re.S).group(0)
+        cps = (hwpx.make_charpr(cp0, _CP_TITLE, round(title_pt * 100), True) + "\n      "
+               + hwpx.make_charpr(cp0, _CP_URL, round(url_pt * 100), False) + "\n      ")
+        header = header.replace('</hh:charProperties>', cps + '</hh:charProperties>', 1)
+        header = re.sub(r'(<hh:charProperties itemCnt=")(\d+)(")',
+                        lambda mm: f'{mm.group(1)}{int(mm.group(2)) + 2}{mm.group(3)}', header, count=1)
 
-    여백·글자 크기·줄바꿈·QR 크기 계산을 PDF 버전(create_qr_pdf_bytes)과
-    완전히 동일한 수치로 맞춰, 두 출력물이 같은 모양으로 보이도록 한다.
-    (reportlab 의 포인트 단위와 python-docx 의 Pt 단위가 동일하므로 계산값을
-    그대로 재사용할 수 있다.) 보이지 않는 표(1행 1열)를 페이지 전체 높이에
-    걸쳐 배치하고 세로 가운데 정렬을 적용해, 내용이 몇 줄이든 위·아래 여백이
-    항상 균형 있게 나온다 — 여백을 상하 대칭으로 두면 PDF의 "전체 블록을
-    페이지 중앙에 배치" 효과와 동일해진다.
+        pp0 = re.search(r'<hh:paraPr id="0".*?</hh:paraPr>', header, re.S).group(0)
+        pps = (_make_parapr(pp0, _PP_TITLE, "LEFT", 115, gap_title_to_url_pt) + "\n      "
+               + _make_parapr(pp0, _PP_URL, "LEFT", 140, gap_url_to_qr_pt) + "\n      "
+               + _make_parapr(pp0, _PP_QR, "CENTER", 100, 0) + "\n      ")
+        header = header.replace('</hh:paraProperties>', pps + '</hh:paraProperties>', 1)
+        header = re.sub(r'(<hh:paraProperties itemCnt=")(\d+)(")',
+                        lambda mm: f'{mm.group(1)}{int(mm.group(2)) + 3}{mm.group(3)}', header, count=1)
+        return header
+    return patch
+
+
+def _qr_section_patch(page_w_pt, page_h_pt, left_pt, top_pt, bottom_pt):
+    def patch(sec):
+        sec = re.sub(r'<hp:pagePr [^>]*>',
+                     f'<hp:pagePr landscape="WIDELY" width="{round(page_w_pt * PT)}" '
+                     f'height="{round(page_h_pt * PT)}" gutterType="LEFT_ONLY">', sec, count=1)
+        sec = re.sub(r'<hp:margin [^>]*/>',
+                     f'<hp:margin header="0" footer="0" gutter="0" left="{round(left_pt * PT)}" '
+                     f'right="{round(left_pt * PT)}" top="{round(top_pt * PT)}" bottom="{round(bottom_pt * PT)}"/>',
+                     sec, count=1)
+        return sec
+    return patch
+
+
+def create_qr_hwpx_bytes(title: str, url: str) -> bytes:
+    """제목 / 링크 주소 / QR코드가 담긴 1페이지 한글(HWPX) 문서를 만들어 bytes로 반환한다.
+
+    여백·글자 크기·QR 크기·위쪽 여백(세로 가운데 배치) 계산을 PDF 버전
+    (create_qr_pdf_bytes)과 동일한 수치로 맞춰 두 출력물이 같은 모양으로 보이도록 한다.
+    제목과 링크는 편집 가능한 글자로, QR코드는 그림 개체로 들어간다.
+    (한글 문서 안의 링크는 일반 글자이며 클릭 링크는 아니다.)
     """
     title = (title or "").strip() or "QR 코드"
     url = (url or "").strip()
@@ -257,7 +248,7 @@ def create_qr_docx_bytes(title: str, url: str) -> bytes:
         raise ValueError("링크 주소가 비어 있습니다.")
     url = normalize_url(url)
 
-    # ---- PDF 버전과 동일한 레이아웃 상수 / 계산 ----
+    # ---- PDF 버전과 동일한 레이아웃 상수 / 계산 (단위: pt) ----
     page_w, page_h = A4
     left_margin = 37 * mm
     min_margin = 20 * mm
@@ -270,10 +261,7 @@ def create_qr_docx_bytes(title: str, url: str) -> bytes:
     gap_url_to_qr = 18 * mm
 
     max_text_width = page_w - 2 * left_margin
-
-    # 줄바꿈 위치를 PDF와 동일하게 계산하기 위한 측정 전용 캔버스(출력되지 않음)
-    measure_buf = io.BytesIO()
-    mc = canvas.Canvas(measure_buf, pagesize=A4)
+    mc = canvas.Canvas(io.BytesIO(), pagesize=A4)  # 줄 수 추정용(출력되지 않음)
     title_lines = _wrap_text_by_width(mc, title, FONTS["bold"], title_font_size, max_text_width)
     url_lines = _wrap_text_by_width(mc, url, FONTS["regular"], url_font_size, max_text_width)
 
@@ -282,78 +270,30 @@ def create_qr_docx_bytes(title: str, url: str) -> bytes:
         + gap_title_to_url
         + len(url_lines) * url_line_height
     )
-
     desired_qr_size = 150 * mm
     available_for_qr = page_h - 2 * min_margin - text_height - gap_url_to_qr
     qr_size = min(desired_qr_size, page_w - 20 * mm, available_for_qr)
     qr_size = max(qr_size, 40 * mm)
 
+    total_block_height = text_height + gap_url_to_qr + qr_size
+    top_margin = max(min_margin, (page_h - total_block_height) / 2)
+
     # ---- 문서 생성 ----
-    doc = Document()
-    section = doc.sections[0]
-    section.page_width = Pt(page_w)
-    section.page_height = Pt(page_h)
-    section.left_margin = Pt(left_margin)
-    section.right_margin = Pt(left_margin)
-    section.top_margin = Pt(min_margin)
-    section.bottom_margin = Pt(min_margin)
-
-    usable_h = page_h - 2 * min_margin
-    table = doc.add_table(rows=1, cols=1)
-    table.autofit = False
-    row = table.rows[0]
-    row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
-    row.height = Pt(usable_h)
-    cell = table.cell(0, 0)
-    cell.width = Pt(max_text_width)
-    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-    _set_table_borderless(table)
-
-    def _line_paragraph(text_line, bold, size, space_after_pt=0):
-        p = cell.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        p.paragraph_format.space_before = Pt(0)
-        p.paragraph_format.space_after = Pt(space_after_pt)
-        run = p.add_run(text_line)
-        run.bold = bold
-        run.font.size = Pt(size)
-        return p
-
-    # 제목 (표의 기본 첫 문단을 첫 줄로 재사용)
-    p_title = cell.paragraphs[0]
-    p_title.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    p_title.paragraph_format.space_before = Pt(0)
-    p_title.paragraph_format.space_after = Pt(0)
-    run_title = p_title.add_run(title_lines[0])
-    run_title.bold = True
-    run_title.font.size = Pt(title_font_size)
-    for line in title_lines[1:]:
-        _line_paragraph(line, True, title_font_size)
-    cell.paragraphs[len(title_lines) - 1].paragraph_format.space_after = Pt(gap_title_to_url)
-
-    # 링크 주소를 제목 바로 아래에 부제목처럼 작게, 간격을 좁혀서 배치
-    # (줄바꿈은 PDF와 동일 · 클릭 가능한 링크는 유지하되 모양은 PDF처럼
-    # 검은색 · 밑줄 없음으로 맞춤)
-    for i, line in enumerate(url_lines):
-        p = cell.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        p.paragraph_format.space_before = Pt(0)
-        p.paragraph_format.space_after = Pt(gap_url_to_qr if i == len(url_lines) - 1 else 0)
-        _add_hyperlink(p, url, line, color="000000", underline=False, size_pt=url_font_size)
-
-    # QR 코드 (가로 중앙, 크기는 PDF와 동일한 방식으로 계산)
-    p_qr = cell.add_paragraph()
-    p_qr.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_qr.paragraph_format.space_before = Pt(0)
-    qr_img = make_qr_image(url)
+    hwpx.reset_images()
     img_buf = io.BytesIO()
-    qr_img.save(img_buf, format="PNG")
-    img_buf.seek(0)
-    p_qr.add_run().add_picture(img_buf, width=Pt(qr_size))
-
-    out_buf = io.BytesIO()
-    doc.save(out_buf)
-    return out_buf.getvalue()
+    make_qr_image(url).save(img_buf, format="PNG")
+    qr_mm = qr_size / mm
+    body = (
+        hwpx.paragraph([hwpx.text_run(title, str(_CP_TITLE))], para_pr=str(_PP_TITLE))
+        + hwpx.paragraph([hwpx.text_run(url, str(_CP_URL))], para_pr=str(_PP_URL))
+        + hwpx.paragraph([hwpx.picture_xml(img_buf.getvalue(), "qr.png", width_mm=qr_mm, max_width_mm=qr_mm)],
+                         para_pr=str(_PP_QR))
+    )
+    return hwpx.package_hwpx(
+        body,
+        section_patch=_qr_section_patch(page_w, page_h, left_margin, top_margin, min_margin),
+        header_patch=_qr_header_patch(title_font_size, url_font_size, gap_title_to_url, gap_url_to_qr),
+    )
 
 
 # ===========================================================================
@@ -363,7 +303,7 @@ def render():
     import streamlit as st
 
     st.subheader("🔗 QR코드 안내문 생성기")
-    st.caption("제목과 링크 주소를 입력하면, QR코드가 담긴 안내문을 PDF 또는 워드 파일로 만들어 드립니다.")
+    st.caption("제목과 링크 주소를 입력하면, QR코드가 담긴 안내문을 PDF 또는 한글(HWPX) 파일로 만들어 드립니다.")
 
     title = st.text_input(
         "제목", value="", placeholder="예: 미적분 패들렛 QR코드", key="qr_title",
@@ -392,7 +332,7 @@ def render():
 
     base_name = safe_filename(title)
 
-    dl_pdf, dl_docx = st.columns(2)
+    dl_pdf, dl_hwpx = st.columns(2)
     with dl_pdf:
         try:
             pdf_bytes = create_qr_pdf_bytes(title, url)
@@ -403,16 +343,16 @@ def render():
             )
         except Exception as e:
             st.error(f"PDF 생성 실패: {e}")
-    with dl_docx:
+    with dl_hwpx:
         try:
-            docx_bytes = create_qr_docx_bytes(title, url)
+            hwpx_bytes = create_qr_hwpx_bytes(title, url)
             st.download_button(
-                "⬇ 워드 다운로드", docx_bytes, file_name=f"{base_name}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                type="primary", use_container_width=True, key="qr_docx_dl",
+                "⬇ 한글(HWPX) 다운로드", hwpx_bytes, file_name=f"{base_name}.hwpx",
+                mime="application/octet-stream",
+                type="primary", use_container_width=True, key="qr_hwpx_dl",
             )
         except Exception as e:
-            st.error(f"워드 문서 생성 실패: {e}")
+            st.error(f"한글 문서 생성 실패: {e}")
 
 
 if __name__ == "__main__":
