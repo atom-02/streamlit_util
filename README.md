@@ -1,6 +1,6 @@
 # 문서 유틸리티 (Streamlit)
 
-세 가지 문서 도구를 한 화면에 모은 웹앱입니다. 상단 탭으로 전환합니다.
+네 가지 문서 도구를 한 화면에 모은 웹앱입니다. 상단 탭으로 전환합니다.
 
 ## 도구
 
@@ -14,6 +14,18 @@ LaTeX 수식이 포함된 마크다운(.md)을 한글(HWPX) 문서로 변환합�
 - 이미지: `![설명](파일명)` — 같은 이름의 이미지 파일을 함께 업로드하면 편집 가능한
   그림 개체(PNG/JPEG/GIF/BMP)로 삽입 (디스크에 쓰지 않고 메모리에서만 처리)
 - 서식: 제목(`#`~`######`), **굵게**, 가로줄(`---`), 표(`|...|`)
+
+### 📷 시험지 문항 캡처 → HWPX (2단)
+수능·모의평가 **수학 영역** PDF의 문항을 하나씩 그림으로 잘라내어, 원본처럼 2단으로
+배치한 한글(HWPX) 문서를 만듭니다. 글자·수식 편집은 되지 않지만 원본 모양이 그대로
+유지됩니다. 잘라낸 문항 PNG는 ZIP으로도 받을 수 있습니다.
+
+- 문항 번호(`1.`, `23.` …)의 위치를 PDF 텍스트 레이어에서 찾아 같은 단 안에서 다음 문항
+  직전까지를 잘라냄. 제목 밑 괘선·쪽번호·"확인 사항" 상자는 자동 제외
+- 문항 번호가 다시 작아지는 곳(30 → 23)을 새 구간(선택과목)으로 보고 구간마다 새 쪽에서 시작
+- 옵션: 용지 B4(수능 규격, 약 91%)/A4(약 75%), 문항 사이 빈 줄 수, 단 구분선,
+  5지선다형/단답형 제목, 구간 이름
+- 평가원 형식(A3 2단, 공통 1~22 + 선택 23~30)에 맞춰져 있어 다른 형식은 인식이 안 될 수 있음
 
 ### 📑 PDF 쪽 추출 · 병합기
 수능·모의고사 PDF에서 원하는 쪽만 뽑거나, 여러 파일을 한 권으로 묶습니다.
@@ -52,13 +64,14 @@ streamlit run streamlit_app.py
 ```
 streamlit_app.py    메인 진입점 (탭으로 세 도구 전환)
 md2hwpx_app.py      Markdown → HWPX 변환 로직 + UI (render())
+capture_tool.py     시험지 문항 캡처 → 2단 HWPX 로직 + UI (render(), md2hwpx_app 재사용)
 pdf_tool.py         PDF 추출·병합 로직 + UI (render())
 qr_tool.py          QR코드 안내문(PDF/워드) 생성 로직 + UI (render())
-requirements.txt    streamlit, pypdf, qrcode[pil], reportlab, python-docx
+requirements.txt    streamlit, pypdf, pymupdf, qrcode[pil], reportlab, python-docx
 packages.txt        fonts-nanum (PDF에 한글을 임베드하기 위한 apt 패키지)
 ```
 
-세 모듈 모두 `render()` 함수만 노출하며, `st.set_page_config()`는
+네 모듈 모두 `render()` 함수만 노출하며, `st.set_page_config()`는
 `streamlit_app.py`에서 한 번만 호출합니다.
 
 ## 참고
