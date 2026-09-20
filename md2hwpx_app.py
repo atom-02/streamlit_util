@@ -10,6 +10,8 @@ HWPX 변환은 파이썬 표준 라이브러리만 사용하며, 기본 HWPX 템
 - 문항과 문항 사이에 빈 줄 자동 삽입 (GAP_BETWEEN_QUESTIONS)
 - 수식 델리미터 확장: `$...$`/`$$...$$` 외에 ChatGPT 등 AI가 흔히 쓰는 `\\(...\\)`(인라인),
   `\\[...\\]`(디스플레이) 델리미터도 인식
+- 집합 중괄호: LaTeX `\\{...\\}` / `\\left\\{...\\right\\}`를 한컴의 표시용
+  `LEFT {... RIGHT }` 문법으로 변환 (`{...}` 그룹 문법과 구분)
 - 이미지 인라인 삽입: `![설명](파일명)` 마크다운 문법 + 같은 이름의 업로드된 이미지 파일을
   매칭해 편집 가능한 실제 그림 개체(hp:pic)로 삽입 (플레이스홀더가 아님)
 """
@@ -97,7 +99,6 @@ def _preprocess(s):
     for sp in SPACES:
         s = s.replace(sp, " ")
     s = re.sub(SIZERS, "", s)
-    s = s.replace(r"\{", "{ ").replace(r"\}", " }")
     return s
 
 
@@ -109,6 +110,13 @@ def latex_to_hwp(src):
         if c == "\\":
             m = re.match(r"\\[A-Za-z]+|\\.", s[i:])
             cmd = m.group(0)
+            # 한컴 수식에서 일반 { }는 여러 항을 묶는 제어문자라 화면에
+            # 표시되지 않는다. LaTeX의 이스케이프된 중괄호만 표시용
+            # LEFT { ... RIGHT } 구문으로 바꿔 집합 괄호를 보존한다.
+            if cmd == r"\{":
+                out.append(" LEFT { "); i += len(cmd); continue
+            if cmd == r"\}":
+                out.append(" RIGHT } "); i += len(cmd); continue
             if cmd in FRAC:
                 a, i = _read_arg(s, i + len(cmd))
                 b, i = _read_arg(s, i)
@@ -730,6 +738,7 @@ def render():
     with st.expander("지원 범위 / 참고"):
         st.markdown(
             "- **수식**: 인라인 `$...$` / `\\(...\\)`, 디스플레이 `$$...$$` / `\\[...\\]` (LaTeX)\n"
+            "- **집합 중괄호**: `A=\\{1,2,3\\}` 또는 `A=\\left\\{x\\mid x>0\\right\\}`\n"
             "- **서식**: 제목(`#`~`######`), **굵게**, 가로줄(`---`), 표(`|...|`)\n"
             "- **이미지**: `![설명](파일명)` — 같은 이름의 이미지 파일을 위에서 함께 업로드하면 "
             "편집 가능한 그림 개체로 삽입됩니다 (PNG/JPEG/GIF/BMP)\n"
