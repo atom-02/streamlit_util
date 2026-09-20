@@ -17,7 +17,7 @@ class LatexToHwpTests(unittest.TestCase):
     def test_left_right_set_braces_are_visible(self):
         self.assertEqual(
             md2hwpx_app.latex_to_hwp(r"B=\left\{x\mid x>0\right\}"),
-            "B= LEFT { x mid x>0 RIGHT }",
+            "B= LEFT { x vert x>0 RIGHT }",
         )
 
     def test_nested_set_braces(self):

@@ -52,6 +52,7 @@ SYMBOL = {
     r"\Rightarrow": " => ", r"\Leftarrow": " <= ",
     r"\leftrightarrow": " <-> ", r"\Leftrightarrow": " <=> ",
     r"\cdot": " cdot ", r"\times": " times ", r"\div": " div ",
+    r"\mid": " vert ",
 }
 SPACES = [r"\,", r"\;", r"\:", r"\!", r"\quad", r"\qquad", r"\ ", r"\>"]
 SIZERS = r"\\(?:Biggl|Biggr|Bigg|biggl|biggr|bigg|Bigl|Bigr|Big|bigl|bigr|big|left|right)\b"
@@ -738,7 +739,8 @@ def render():
     with st.expander("지원 범위 / 참고"):
         st.markdown(
             "- **수식**: 인라인 `$...$` / `\\(...\\)`, 디스플레이 `$$...$$` / `\\[...\\]` (LaTeX)\n"
-            "- **집합 중괄호**: `A=\\{1,2,3\\}` 또는 `A=\\left\\{x\\mid x>0\\right\\}`\n"
+            "- **집합 중괄호**: `A=\\{1,2,3\\}` 또는 `A=\\left\\{x\\mid x>0\\right\\}` "
+            "(`\\mid`는 한컴의 `vert`로 변환)\n"
             "- **서식**: 제목(`#`~`######`), **굵게**, 가로줄(`---`), 표(`|...|`)\n"
             "- **이미지**: `![설명](파일명)` — 같은 이름의 이미지 파일을 위에서 함께 업로드하면 "
             "편집 가능한 그림 개체로 삽입됩니다 (PNG/JPEG/GIF/BMP)\n"
