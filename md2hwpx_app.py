@@ -52,7 +52,7 @@ SYMBOL = {
     r"\Rightarrow": " => ", r"\Leftarrow": " <= ",
     r"\leftrightarrow": " <-> ", r"\Leftrightarrow": " <=> ",
     r"\cdot": " cdot ", r"\times": " times ", r"\div": " div ",
-    r"\mid": " vert ",
+    r"\mid": " ~ vert ~ ",
 }
 SPACES = [r"\,", r"\;", r"\:", r"\!", r"\quad", r"\qquad", r"\ ", r"\>"]
 SIZERS = r"\\(?:Biggl|Biggr|Bigg|biggl|biggr|bigg|Bigl|Bigr|Big|bigl|bigr|big|left|right)\b"
@@ -106,6 +106,7 @@ def _preprocess(s):
 def latex_to_hwp(src):
     s = _preprocess(src)
     out, i = [], 0
+    set_depth = 0
     while i < len(s):
         c = s[i]
         if c == "\\":
@@ -115,8 +116,10 @@ def latex_to_hwp(src):
             # 표시되지 않는다. LaTeX의 이스케이프된 중괄호만 표시용
             # LEFT { ... RIGHT } 구문으로 바꿔 집합 괄호를 보존한다.
             if cmd == r"\{":
+                set_depth += 1
                 out.append(" LEFT { "); i += len(cmd); continue
             if cmd == r"\}":
+                set_depth = max(0, set_depth - 1)
                 out.append(" RIGHT } "); i += len(cmd); continue
             if cmd in FRAC:
                 a, i = _read_arg(s, i + len(cmd))
@@ -149,6 +152,10 @@ def latex_to_hwp(src):
         if c in "_^":
             arg, i = _read_arg(s, i + 1)
             out.append(c + "{" + latex_to_hwp(arg) + "}")
+            continue
+        if c == "," and set_depth:
+            out.append(",~")
+            i += 1
             continue
         out.append(c)
         i += 1
@@ -740,7 +747,7 @@ def render():
         st.markdown(
             "- **수식**: 인라인 `$...$` / `\\(...\\)`, 디스플레이 `$$...$$` / `\\[...\\]` (LaTeX)\n"
             "- **집합 중괄호**: `A=\\{1,2,3\\}` 또는 `A=\\left\\{x\\mid x>0\\right\\}` "
-            "(`\\mid`는 한컴의 `vert`로 변환)\n"
+            "(원소 사이는 `~`, `\\mid`는 `~ vert ~`로 변환)\n"
             "- **서식**: 제목(`#`~`######`), **굵게**, 가로줄(`---`), 표(`|...|`)\n"
             "- **이미지**: `![설명](파일명)` — 같은 이름의 이미지 파일을 위에서 함께 업로드하면 "
             "편집 가능한 그림 개체로 삽입됩니다 (PNG/JPEG/GIF/BMP)\n"
