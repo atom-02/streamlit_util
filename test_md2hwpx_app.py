@@ -47,6 +47,58 @@ class LatexToHwpTests(unittest.TestCase):
         scripts = re.findall(r"<hp:script>(.*?)</hp:script>", section)
         self.assertIn("A= LEFT { 1,~2,~3 RIGHT }", scripts)
 
+    def test_nth_root_uses_hancom_of_syntax(self):
+        self.assertEqual(
+            md2hwpx_app.latex_to_hwp(r"\sqrt[3]{x}"),
+            "root {3} of {x}",
+        )
+
+    def test_matrix_wrappers_are_preserved(self):
+        self.assertEqual(
+            md2hwpx_app.latex_to_hwp(r"\begin{pmatrix}a&b\\c&d\end{pmatrix}"),
+            "pmatrix{a&b # c&d}",
+        )
+        self.assertEqual(
+            md2hwpx_app.latex_to_hwp(r"\begin{bmatrix}a&b\\c&d\end{bmatrix}"),
+            "bmatrix{a&b # c&d}",
+        )
+        self.assertEqual(
+            md2hwpx_app.latex_to_hwp(r"\begin{vmatrix}a&b\\c&d\end{vmatrix}"),
+            "dmatrix{a&b # c&d}",
+        )
+
+    def test_scalable_delimiters_and_aligned(self):
+        self.assertEqual(
+            md2hwpx_app.latex_to_hwp(r"\left(\sum_{k=1}^{n}k\right)"),
+            "LEFT ( sum _{k=1}^{n}k RIGHT )",
+        )
+        self.assertEqual(
+            md2hwpx_app.latex_to_hwp(r"\begin{aligned}a&=b\\c&=d\end{aligned}"),
+            "eqalign{a=b # c=d}",
+        )
+
+    def test_symbols_fonts_and_accents(self):
+        converted = md2hwpx_app.latex_to_hwp(
+            r"\emptyset,\forall x,\mathcal{F},\dots,\acute{x}"
+        )
+        for expected in ("EMPTYSET", "FORALL", "it {F}", "ldots", "acute {x}"):
+            self.assertIn(expected, converted)
+
+
+class MarkdownParsingTests(unittest.TestCase):
+    def test_code_spans_protect_literal_math_delimiters(self):
+        self.assertEqual(
+            md2hwpx_app.parse_inline("기호 `$`와 `$$`, 수식 $x+1$, **굵게**"),
+            [("t", "기호 "), ("t", "$"), ("t", "와 "), ("t", "$$"),
+             ("t", ", 수식 "), ("eq", "x+1"), ("t", ", "), ("b", "굵게")],
+        )
+
+    def test_list_items_remain_separate_paragraphs(self):
+        blocks = md2hwpx_app.parse_markdown("- 첫째\n- 둘째\n\n일반 문단")
+        self.assertEqual([block[0] for block in blocks], ["p", "p", "p"])
+        self.assertEqual(blocks[0][1], [("t", "- 첫째")])
+        self.assertEqual(blocks[1][1], [("t", "- 둘째")])
+
 
 if __name__ == "__main__":
     unittest.main()

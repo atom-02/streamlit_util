@@ -38,8 +38,8 @@ KEYWORDS = {
     "xi", "pi", "varpi", "rho", "sigma", "tau", "upsilon", "phi", "varphi",
     "chi", "psi", "omega", "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi",
     "Sigma", "Upsilon", "Phi", "Psi", "Omega", "partial", "nabla",
-    "cdot", "times", "div", "ast", "circ", "cdots", "ldots", "dots",
-    "in", "notin", "subset", "supset", "cup", "cap", "forall", "exists",
+    "cdot", "times", "div", "ast", "circ", "cdots", "ldots", "dots", "vdots", "ddots",
+    "in", "notin", "subset", "supset", "subseteq", "supseteq", "cup", "cap", "forall", "exists",
     "sim", "approx", "equiv", "propto",
 }
 SYMBOL = {
@@ -53,9 +53,15 @@ SYMBOL = {
     r"\leftrightarrow": " <-> ", r"\Leftrightarrow": " <=> ",
     r"\cdot": " cdot ", r"\times": " times ", r"\div": " div ",
     r"\mid": " ~ vert ~ ",
+    r"\emptyset": " EMPTYSET ", r"\varnothing": " EMPTYSET ",
+    r"\forall": " FORALL ", r"\exists": " EXIST ",
+    r"\subseteq": " SUBSETEQ ", r"\supseteq": " SUPSETEQ ",
+    r"\therefore": " THEREFORE ", r"\because": " BECAUSE ",
+    r"\ldots": " ldots ", r"\dots": " ldots ", r"\cdots": " cdots ",
+    r"\vdots": " vdots ", r"\ddots": " ddots ",
 }
 SPACES = [r"\,", r"\;", r"\:", r"\!", r"\quad", r"\qquad", r"\ ", r"\>"]
-SIZERS = r"\\(?:Biggl|Biggr|Bigg|biggl|biggr|bigg|Bigl|Bigr|Big|bigl|bigr|big|left|right)\b"
+SIZERS = r"\\(?:Biggl|Biggr|Bigg|biggl|biggr|bigg|Bigl|Bigr|Big|bigl|bigr|big)\b"
 
 
 def _find_group(s, i):
@@ -91,12 +97,23 @@ def _preprocess(s):
     def repl_cases(m):
         return " cases{" + m.group(1).replace(r"\\", " # ") + "} "
     s = re.sub(r"\\begin\{cases\}(.*?)\\end\{cases\}", repl_cases, s, flags=re.S)
+    matrix_names = {"matrix": "matrix", "pmatrix": "pmatrix", "bmatrix": "bmatrix",
+                    "vmatrix": "dmatrix", "Vmatrix": "dmatrix"}
     def repl_matrix(m):
-        return " matrix{" + m.group(2).replace(r"\\", " # ") + "} "
-    s = re.sub(r"\\begin\{(p|b|v|V|)matrix\}(.*?)\\end\{\1matrix\}", repl_matrix, s, flags=re.S)
+        name = matrix_names[m.group(1)]
+        return " " + name + "{" + m.group(2).replace(r"\\", " # ") + "} "
+    s = re.sub(r"\\begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\}(.*?)\\end\{\1\}",
+               repl_matrix, s, flags=re.S)
+    def repl_aligned(m):
+        body = m.group(2).replace(r"\\", " # ").replace("&", "")
+        return " eqalign{" + body + "} "
+    s = re.sub(r"\\begin\{(aligned|align\*?)\}(.*?)\\end\{\1\}", repl_aligned, s, flags=re.S)
     s = re.sub(r"\\boxed\s*\{", "{", s)
-    for cmd in (r"\text", r"\mathrm", r"\mathbf", r"\mathit", r"\operatorname"):
+    for cmd in (r"\text", r"\operatorname"):
         s = re.sub(re.escape(cmd) + r"\s*\{([^{}]*)\}", r'"\1"', s)
+    for cmd, hwp in ((r"\mathbf", "bold"), (r"\mathrm", "rm"),
+                     (r"\mathit", "it"), (r"\mathcal", "it")):
+        s = re.sub(re.escape(cmd) + r"\s*\{([^{}]*)\}", hwp + r" {\1}", s)
     for sp in SPACES:
         s = s.replace(sp, " ")
     s = re.sub(SIZERS, "", s)
@@ -134,15 +151,33 @@ def latex_to_hwp(src):
                     k = s.index("]", j)
                     n = s[j + 1:k]
                     x, i = _read_arg(s, k + 1)
-                    out.append(" root {" + latex_to_hwp(n) + "} {" + latex_to_hwp(x) + "} ")
+                    out.append(" root {" + latex_to_hwp(n) + "} of {" + latex_to_hwp(x) + "} ")
                 else:
                     x, i = _read_arg(s, i + len(cmd))
                     out.append(" sqrt {" + latex_to_hwp(x) + "} ")
                 continue
-            if cmd in (r"\vec", r"\hat", r"\bar", r"\tilde", r"\dot", r"\ddot", r"\overline"):
+            if cmd in (r"\vec", r"\hat", r"\bar", r"\tilde", r"\dot", r"\ddot", r"\overline",
+                       r"\acute", r"\grave", r"\check", r"\under", r"\arch"):
                 a, i = _read_arg(s, i + len(cmd))
                 name = {r"\overline": "bar"}.get(cmd, cmd[1:])
                 out.append(" " + name + " {" + latex_to_hwp(a) + "} ")
+                continue
+            if cmd in (r"\left", r"\right"):
+                j = i + len(cmd)
+                while j < len(s) and s[j].isspace():
+                    j += 1
+                delim = ""
+                if j < len(s) and s[j] == "\\" and j + 1 < len(s):
+                    delim, j = s[j + 1], j + 2
+                elif j < len(s):
+                    delim, j = s[j], j + 1
+                if delim != ".":
+                    out.append((" LEFT " if cmd == r"\left" else " RIGHT ") + delim + " ")
+                    if delim == "{" and cmd == r"\left":
+                        set_depth += 1
+                    elif delim == "}" and cmd == r"\right":
+                        set_depth = max(0, set_depth - 1)
+                i = j
                 continue
             if cmd in SYMBOL:
                 out.append(SYMBOL[cmd]); i += len(cmd); continue
@@ -166,6 +201,7 @@ def latex_to_hwp(src):
 # 2.  Markdown parsing
 # ===========================================================================
 _IMG_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
+_LIST_RE = re.compile(r"^\s*(?:[-+*]|\d+[.)])\s+")
 
 
 def parse_markdown(text):
@@ -205,10 +241,13 @@ def parse_markdown(text):
         m = re.match(r"^(#{1,6})\s+(.*)$", line)
         if m:
             blocks.append(("h", len(m.group(1)), m.group(2).strip())); i += 1; continue
+        if _LIST_RE.match(line):
+            blocks.append(("p", parse_inline(line.strip()))); i += 1; continue
         para = [line]; i += 1
         while i < len(lines):
             nx = lines[i].strip()
-            if not nx or nx.startswith(("#", "$$", "|", "\\[")) or re.match(r"^-{3,}$", nx) or _IMG_RE.match(nx):
+            if (not nx or nx.startswith(("#", "$$", "|", "\\[")) or
+                    re.match(r"^-{3,}$", nx) or _IMG_RE.match(nx) or _LIST_RE.match(lines[i])):
                 break
             para.append(lines[i].rstrip()); i += 1
         blocks.append(("p", parse_inline(" ".join(para))))
@@ -221,26 +260,27 @@ def parse_table(rows):
 
 
 # 인라인 수식 델리미터: $...$ (LaTeX 표준) 또는 \(...\) (ChatGPT 등 AI가 흔히 씀)
-_INLINE_MATH_RE = re.compile(r"\$(?!\$)(.+?)(?<!\$)\$|\\\((.+?)\\\)", re.S)
-
-
-def _append_text_runs(runs, part):
-    for j, seg in enumerate(re.split(r"\*\*", part)):
-        if seg:
-            runs.append(("b", seg) if j % 2 == 1 else ("t", seg))
+_INLINE_TOKEN_RE = re.compile(
+    r"`([^`\n]*)`|\*\*(.+?)\*\*|\\\((.+?)\\\)|\$(?!\$)(.+?)(?<!\$)\$", re.S
+)
 
 
 def parse_inline(text):
     runs = []
     pos = 0
-    for m in _INLINE_MATH_RE.finditer(text):
+    for m in _INLINE_TOKEN_RE.finditer(text):
         if m.start() > pos:
-            _append_text_runs(runs, text[pos:m.start()])
-        eq_content = m.group(1) if m.group(1) is not None else m.group(2)
-        runs.append(("eq", eq_content.strip()))
+            runs.append(("t", text[pos:m.start()]))
+        if m.group(1) is not None:
+            runs.append(("t", m.group(1)))
+        elif m.group(2) is not None:
+            runs.append(("b", m.group(2)))
+        else:
+            eq_content = m.group(3) if m.group(3) is not None else m.group(4)
+            runs.append(("eq", eq_content.strip()))
         pos = m.end()
     if pos < len(text):
-        _append_text_runs(runs, text[pos:])
+        runs.append(("t", text[pos:]))
     return runs
 
 
@@ -415,7 +455,7 @@ def equation_xml(latex):
     bu = 1000
     n = max(len(re.sub(r"[{}\s]", "", script)), 2)
     h = 1.5
-    if "over" in script or "cases" in script or "matrix" in script:
+    if "over" in script or "cases" in script or "matrix" in script or "dmatrix" in script or "eqalign" in script:
         h += 1.1
     if "cases" in script:
         h += latex.count(r"\\") * 0.9
