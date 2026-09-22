@@ -8,6 +8,39 @@ import md2hwpx_app
 
 
 class LatexToHwpTests(unittest.TestCase):
+    def test_displaystyle_is_consumed_as_layout_only(self):
+        converted = md2hwpx_app.latex_to_hwp(
+            r"\displaystyle\lim_{n\to\infty}\frac1n"
+            r"\sum_{k=1}^{n}\sqrt{4+\frac{5k}{n}}"
+        )
+
+        self.assertNotIn("displaystyle", converted)
+        self.assertEqual(
+            converted,
+            "lim _{n -> inf} {1} over {n} sum _{k=1}^{n}"
+            " sqrt {4+ {5k} over {n}}",
+        )
+
+    def test_generated_hwpx_does_not_leak_displaystyle(self):
+        source = (
+            r"24. $\displaystyle\lim_{n\to\infty}\frac1n"
+            r"\sum_{k=1}^{n}\sqrt{4+\frac{5k}{n}}$의 값은?"
+            "\n\n"
+            r"25. $\displaystyle\sum_{n=1}^{\infty}a_n$의 값은?"
+        )
+        data, _, _ = md2hwpx_app.convert_md_to_hwpx_bytes(source)
+
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            section = html.unescape(
+                archive.read("Contents/section0.xml").decode("utf-8")
+            )
+
+        scripts = re.findall(r"<hp:script>(.*?)</hp:script>", section)
+        self.assertTrue(scripts)
+        self.assertTrue(all("displaystyle" not in script for script in scripts))
+        self.assertTrue(any(script.startswith("lim _{n -> inf}") for script in scripts))
+        self.assertIn("sum _{n=1}^{inf}a_{n}", scripts)
+
     def test_literal_set_braces_are_visible(self):
         self.assertEqual(
             md2hwpx_app.latex_to_hwp(r"A=\{1,2,3\}"),

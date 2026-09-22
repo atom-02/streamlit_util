@@ -62,6 +62,7 @@ SYMBOL = {
 }
 SPACES = [r"\,", r"\;", r"\:", r"\!", r"\quad", r"\qquad", r"\ ", r"\>"]
 SIZERS = r"\\(?:Biggl|Biggr|Bigg|biggl|biggr|bigg|Bigl|Bigr|Big|bigl|bigr|big)\b"
+DISPLAY_STYLES = r"\\displaystyle\b"
 
 
 def _find_group(s, i):
@@ -94,6 +95,9 @@ def _read_arg(s, i):
 
 def _preprocess(s):
     s = s.strip()
+    # ``\displaystyle`` only controls TeX layout.  If it reaches the generic
+    # command fallback below, Hancom visibly renders the word "displaystyle".
+    s = re.sub(DISPLAY_STYLES, "", s)
     def repl_cases(m):
         return " cases{" + m.group(1).replace(r"\\", " # ") + "} "
     s = re.sub(r"\\begin\{cases\}(.*?)\\end\{cases\}", repl_cases, s, flags=re.S)
