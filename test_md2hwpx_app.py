@@ -86,6 +86,27 @@ class LatexToHwpTests(unittest.TestCase):
 
 
 class MarkdownParsingTests(unittest.TestCase):
+    def test_ai_style_bracket_display_math(self):
+        blocks = md2hwpx_app.parse_markdown(
+            "무한급수\n[ \\sum\\_{n=1}^{\\infty}\\frac1{n(n+2)} ]\n의 합은?"
+        )
+
+        self.assertEqual(blocks[1], ("eq", r"\sum_{n=1}^{\infty}\frac1{n(n+2)}"))
+        body = md2hwpx_app.build_body(blocks)
+        self.assertIn("<hp:script>sum _{n=1}^{inf} {1} over {n(n+2)}</hp:script>", body)
+        self.assertNotIn(r"\sum\_", body)
+
+    def test_parenthesized_latex_choices_become_equations(self):
+        source = r"① (\frac12)　② (\frac23)　③ (\frac34)　④ (\frac56)　⑤ (1)"
+        runs = md2hwpx_app.parse_inline(source)
+
+        self.assertEqual([value for kind, value in runs if kind == "eq"],
+                         [r"\frac12", r"\frac23", r"\frac34", r"\frac56"])
+        self.assertIn(("t", "　⑤ (1)"), runs)
+        body = md2hwpx_app.build_body([("p", runs)])
+        self.assertEqual(body.count("<hp:equation"), 4)
+        self.assertNotIn(r"(\frac", body)
+
     def test_bold_text_can_contain_inline_math(self):
         source = "**원래의 함수 $f(x)$ 곡선 위에도 있는**"
 

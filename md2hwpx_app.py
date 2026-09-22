@@ -202,6 +202,20 @@ def latex_to_hwp(src):
 # ===========================================================================
 _IMG_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
 _LIST_RE = re.compile(r"^\s*(?:[-+*]|\d+[.)])\s+")
+_LATEX_COMMAND_RE = re.compile(
+    r"\\(?:frac|dfrac|tfrac|sqrt|sum|prod|int|oint|lim|log|ln|exp|"
+    r"sin|cos|tan|vec|hat|bar|overline|begin|left|right|infty)(?![A-Za-z])"
+)
+
+
+def _clean_latex_source(text):
+    """Normalize Markdown-escaped operators inside an identified math span."""
+    return text.strip().replace(r"\_", "_").replace(r"\^", "^")
+
+
+def _is_bare_bracket_math_start(text):
+    """Recognize AI-style display math written as `[ ... ]`."""
+    return text.startswith("[") and bool(_LATEX_COMMAND_RE.search(text))
 
 
 def parse_markdown(text):
@@ -237,7 +251,18 @@ def parse_markdown(text):
                 content = content[2:]
             if content.endswith("\\]"):
                 content = content[:-2]
-            blocks.append(("eq", content.strip())); i += 1; continue
+            blocks.append(("eq", _clean_latex_source(content))); i += 1; continue
+        if _is_bare_bracket_math_start(st):
+            # Some AI outputs use bare square brackets instead of \[ ... \].
+            # Only accept a standalone block containing a known LaTeX command
+            # so ordinary Markdown links and bracketed prose remain text.
+            buf = st
+            while not buf.rstrip().endswith("]") and i + 1 < len(lines):
+                i += 1; buf += "\n" + lines[i].strip()
+            content = buf.strip()
+            if content.startswith("[") and content.endswith("]"):
+                blocks.append(("eq", _clean_latex_source(content[1:-1])))
+                i += 1; continue
         m = re.match(r"^(#{1,6})\s+(.*)$", line)
         if m:
             blocks.append(("h", len(m.group(1)), m.group(2).strip())); i += 1; continue
@@ -247,6 +272,7 @@ def parse_markdown(text):
         while i < len(lines):
             nx = lines[i].strip()
             if (not nx or nx.startswith(("#", "$$", "|", "\\[")) or
+                    _is_bare_bracket_math_start(nx) or
                     re.match(r"^-{3,}$", nx) or _IMG_RE.match(nx) or _LIST_RE.match(lines[i])):
                 break
             para.append(lines[i].rstrip()); i += 1
@@ -265,12 +291,40 @@ _INLINE_TOKEN_RE = re.compile(
 )
 
 
+def _split_parenthesized_latex(text):
+    """Split `(\\frac...)`-style AI math from otherwise ordinary text."""
+    runs, start, i = [], 0, 0
+    while i < len(text):
+        if text[i] != "(":
+            i += 1
+            continue
+        depth, j = 1, i + 1
+        while j < len(text) and depth:
+            if text[j] == "(":
+                depth += 1
+            elif text[j] == ")":
+                depth -= 1
+            j += 1
+        if depth:
+            break
+        content = text[i + 1:j - 1]
+        if _LATEX_COMMAND_RE.search(content):
+            if i > start:
+                runs.append(("t", text[start:i]))
+            runs.append(("eq", _clean_latex_source(content)))
+            start = j
+        i = j
+    if start < len(text):
+        runs.append(("t", text[start:]))
+    return runs
+
+
 def parse_inline(text):
     runs = []
     pos = 0
     for m in _INLINE_TOKEN_RE.finditer(text):
         if m.start() > pos:
-            runs.append(("t", text[pos:m.start()]))
+            runs.extend(_split_parenthesized_latex(text[pos:m.start()]))
         if m.group(1) is not None:
             runs.append(("t", m.group(1)))
         elif m.group(2) is not None:
@@ -281,10 +335,10 @@ def parse_inline(text):
                 runs.append((inner_kind if inner_kind == "eq" else "b", inner_value))
         else:
             eq_content = m.group(3) if m.group(3) is not None else m.group(4)
-            runs.append(("eq", eq_content.strip()))
+            runs.append(("eq", _clean_latex_source(eq_content)))
         pos = m.end()
     if pos < len(text):
-        runs.append(("t", text[pos:]))
+        runs.extend(_split_parenthesized_latex(text[pos:]))
     return runs
 
 
