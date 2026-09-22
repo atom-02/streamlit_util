@@ -134,6 +134,7 @@ class MarkdownParsingTests(unittest.TestCase):
         self.assertEqual(
             md2hwpx_app._runs_leading_text(transformed[1][1]), "①"
         )
+        self.assertFalse(any(block[0] == "p" and not block[1] for block in transformed))
 
     def test_question_and_choices_are_adjacent_in_generated_hwpx(self):
         source = (
