@@ -3,6 +3,7 @@ import io
 import re
 import unittest
 import zipfile
+import xml.etree.ElementTree as ET
 
 import md2hwpx_app
 
@@ -119,6 +120,42 @@ class LatexToHwpTests(unittest.TestCase):
 
 
 class MarkdownParsingTests(unittest.TestCase):
+    def test_choice_only_paragraph_does_not_create_blank_paragraph(self):
+        blocks = md2hwpx_app.parse_markdown(
+            "23. 문제의 값은? **[2점]**\n\n"
+            "① $1$    ② $2$    ③ $3$    ④ $4$    ⑤ $5$"
+        )
+        transformed = md2hwpx_app.transform_blocks(
+            blocks, split_choices=True, gap=True
+        )
+
+        self.assertEqual([block[0] for block in transformed], ["p", "p"])
+        self.assertTrue(all(block[1] for block in transformed))
+        self.assertEqual(
+            md2hwpx_app._runs_leading_text(transformed[1][1]), "①"
+        )
+
+    def test_question_and_choices_are_adjacent_in_generated_hwpx(self):
+        source = (
+            r"24. $\displaystyle\lim_{n\to\infty}\frac1n"
+            r"\sum_{k=1}^{n}\sqrt{4+\frac{5k}{n}}$의 값은? **[3점]**"
+            "\n\n"
+            r"① $\frac{32}{15}$    ② $\frac{34}{15}$    ③ $\frac{36}{15}$"
+            r"    ④ $\frac{38}{15}$    ⑤ $\frac{40}{15}$"
+        )
+        data, _, _ = md2hwpx_app.convert_md_to_hwpx_bytes(source)
+
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            root = ET.fromstring(archive.read("Contents/section0.xml"))
+        ns = {"hp": "http://www.hancom.co.kr/hwpml/2011/paragraph"}
+        paragraphs = root.findall("hp:p", ns)[1:]
+
+        self.assertEqual(len(paragraphs), 2)
+        first_text = "".join(node.text or "" for node in paragraphs[0].findall(".//hp:t", ns))
+        second_text = "".join(node.text or "" for node in paragraphs[1].findall(".//hp:t", ns))
+        self.assertTrue(first_text.startswith("24."))
+        self.assertTrue(second_text.startswith("①"))
+
     def test_ai_style_bracket_display_math(self):
         blocks = md2hwpx_app.parse_markdown(
             "무한급수\n[ \\sum\\_{n=1}^{\\infty}\\frac1{n(n+2)} ]\n의 합은?"
