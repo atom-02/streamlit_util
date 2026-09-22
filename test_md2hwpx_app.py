@@ -86,6 +86,26 @@ class LatexToHwpTests(unittest.TestCase):
 
 
 class MarkdownParsingTests(unittest.TestCase):
+    def test_heading_inline_math_becomes_equation(self):
+        blocks = md2hwpx_app.parse_markdown(
+            r"### 1. 가로선 $y=t$ 와의 만남"
+        )
+        body = md2hwpx_app.build_body(blocks)
+
+        self.assertIn('<hp:run charPrIDRef="7"><hp:t>1. 가로선 </hp:t></hp:run>', body)
+        self.assertIn("<hp:script>y=t</hp:script>", body)
+        self.assertNotIn("$y=t$", body)
+
+    def test_heading_parenthesized_math_becomes_equation(self):
+        blocks = md2hwpx_app.parse_markdown(
+            r"## 역함수 관계 \(f(g(t))=t\)"
+        )
+        body = md2hwpx_app.build_body(blocks)
+
+        self.assertIn('<hp:run charPrIDRef="8"><hp:t>역함수 관계 </hp:t></hp:run>', body)
+        self.assertIn("<hp:script>f(g(t))=t</hp:script>", body)
+        self.assertNotIn(r"\(f(g(t))=t\)", body)
+
     def test_code_spans_protect_literal_math_delimiters(self):
         self.assertEqual(
             md2hwpx_app.parse_inline("기호 `$`와 `$$`, 수식 $x+1$, **굵게**"),

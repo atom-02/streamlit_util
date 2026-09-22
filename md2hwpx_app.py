@@ -493,13 +493,13 @@ def paragraph(inner, para_pr="0", style="0"):
             f'pageBreak="0" columnBreak="0" merged="0">' + "".join(inner) + "</hp:p>")
 
 
-def runs_from_inline(items):
+def runs_from_inline(items, text_cp="0", bold_cp="9"):
     out = []
     for kind, val in items:
         if kind == "t":
-            out.append(text_run(val))
+            out.append(text_run(val, text_cp))
         elif kind == "b":
-            out.append(text_run(val, "9"))
+            out.append(text_run(val, bold_cp))
         else:
             out.append(equation_xml(val))
     return out or [text_run("")]
@@ -564,7 +564,9 @@ def build_body(blocks, images=None):
     for b in blocks:
         if b[0] == "h":
             cp = {1: "5", 2: "8", 3: "7"}.get(b[1], "7")
-            out.append(paragraph([text_run(b[2], cp)]))
+            # Headings can contain the same inline Markdown as body paragraphs.
+            # Keep heading text styled while emitting math as editable equations.
+            out.append(paragraph(runs_from_inline(parse_inline(b[2]), cp, cp)))
         elif b[0] == "hr":
             out.append(paragraph([text_run("─" * 40)]))
         elif b[0] == "eq":
