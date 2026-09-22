@@ -86,6 +86,20 @@ class LatexToHwpTests(unittest.TestCase):
 
 
 class MarkdownParsingTests(unittest.TestCase):
+    def test_bold_text_can_contain_inline_math(self):
+        source = "**원래의 함수 $f(x)$ 곡선 위에도 있는**"
+
+        self.assertEqual(
+            md2hwpx_app.parse_inline(source),
+            [("b", "원래의 함수 "), ("eq", "f(x)"), ("b", " 곡선 위에도 있는")],
+        )
+
+        body = md2hwpx_app.build_body(md2hwpx_app.parse_markdown(source))
+        self.assertIn('<hp:run charPrIDRef="9"><hp:t>원래의 함수 </hp:t></hp:run>', body)
+        self.assertIn("<hp:script>f(x)</hp:script>", body)
+        self.assertIn('<hp:run charPrIDRef="9"><hp:t> 곡선 위에도 있는</hp:t></hp:run>', body)
+        self.assertNotIn("$f(x)$", body)
+
     def test_heading_inline_math_becomes_equation(self):
         blocks = md2hwpx_app.parse_markdown(
             r"### 1. 가로선 $y=t$ 와의 만남"

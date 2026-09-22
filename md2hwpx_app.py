@@ -274,7 +274,11 @@ def parse_inline(text):
         if m.group(1) is not None:
             runs.append(("t", m.group(1)))
         elif m.group(2) is not None:
-            runs.append(("b", m.group(2)))
+            # Bold text may itself contain inline equations. Parse its contents
+            # again, preserving bold styling for text while keeping equations
+            # as editable equation objects.
+            for inner_kind, inner_value in parse_inline(m.group(2)):
+                runs.append((inner_kind if inner_kind == "eq" else "b", inner_value))
         else:
             eq_content = m.group(3) if m.group(3) is not None else m.group(4)
             runs.append(("eq", eq_content.strip()))
