@@ -123,6 +123,10 @@ class LatexToHwpTests(unittest.TestCase):
             md2hwpx_app.latex_to_hwp(r"P\implies Q"),
             "P RARROW Q",
         )
+        self.assertEqual(
+            md2hwpx_app.latex_to_hwp(r"P\\implies Q"),
+            "P RARROW Q",
+        )
 
         data, _, _ = md2hwpx_app.convert_md_to_hwpx_bytes(
             r"$P\implies Q$"
@@ -277,6 +281,18 @@ class MarkdownParsingTests(unittest.TestCase):
         self.assertEqual([block[0] for block in blocks], ["p", "p", "p"])
         self.assertEqual(blocks[0][1], [("t", "- 첫째")])
         self.assertEqual(blocks[1][1], [("t", "- 둘째")])
+
+    def test_consecutive_exam_lines_remain_separate_paragraphs(self):
+        blocks = md2hwpx_app.parse_markdown(
+            "**문제**\n"
+            "함수 $f(x)$에 대하여\n"
+            "$P\\implies Q$일 때 값을 구하여라."
+        )
+
+        self.assertEqual([block[0] for block in blocks], ["p", "p", "p"])
+        self.assertEqual(blocks[0][1], [("b", "문제")])
+        self.assertIn(("eq", "f(x)"), blocks[1][1])
+        self.assertIn(("eq", r"P\implies Q"), blocks[2][1])
 
 
 if __name__ == "__main__":
