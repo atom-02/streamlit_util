@@ -1,13 +1,13 @@
 """Markdown (+LaTeX, +이미지) -> HWPX converter.
 
 streamlit_app.py 에서 render() 를 호출해 사용합니다.
-HWPX 변환은 파이썬 표준 라이브러리만 사용하며, 기본 HWPX 템플릿은
-아래에 base64 로 내장되어 있습니다. 업로드된 파일(마크다운/이미지)은 디스크에 쓰지 않고
-메모리에서만 처리됩니다.
+HWPX 변환은 파이썬 표준 라이브러리만 사용하며, 기본 HWPX 템플릿과 A4/B4 시험지
+템플릿은 base64 로 내장되어 있습니다. 업로드된 파일(마크다운/이미지)은 디스크에 쓰지
+않고 메모리에서만 처리됩니다.
 
 [이식 기능]
 - 5지선다 보기(①~⑤)를 문항(점수) 다음 줄로 자동 분리 (SPLIT_CHOICES)
-- 문항과 문항 사이에 빈 줄 자동 삽입 (GAP_BETWEEN_QUESTIONS)
+- 문항과 문항 사이에 빈 줄 2줄 자동 삽입 (GAP_BETWEEN_QUESTIONS)
 - 수식 델리미터 확장: `$...$`/`$$...$$` 외에 ChatGPT 등 AI가 흔히 쓰는 `\\(...\\)`(인라인),
   `\\[...\\]`(디스플레이) 델리미터도 인식
 - 집합 중괄호: LaTeX `\\{...\\}` / `\\left\\{...\\right\\}`를 한컴의 표시용
@@ -17,10 +17,13 @@ HWPX 변환은 파이썬 표준 라이브러리만 사용하며, 기본 HWPX 템
 """
 import base64, hashlib, html, io, os, re, zipfile
 
+from exam_templates import DEFAULT_EXAM_TEMPLATE, EXAM_TEMPLATES
+
 # --- 이식 기능 스위치 -------------------------------------------------------
 SPLIT_CHOICES = True          # ①②③④⑤ 보기를 문항 다음 줄로 내림
 GAP_BETWEEN_QUESTIONS = True  # 새 문항 앞에 빈 줄 삽입
-CONVERTER_VERSION = "2026.09.22-3"
+QUESTION_GAP_LINES = 2        # 문항과 다음 문항 사이의 빈 줄 수
+CONVERTER_VERSION = "2026.09.27-1"
 
 # --- embedded base HWPX template (real Hancom-saved skeleton) --------------
 _BASE_ZIP_B64 = """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"""
@@ -387,16 +390,15 @@ def _split_choice_runs(runs):
 def transform_blocks(blocks, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTIONS):
     """파싱된 blocks에 보기 줄바꿈/문항 간격을 적용한 새 blocks 반환."""
     out = []
-    prev_q = False
+    seen_question = False
     for b in blocks:
         if b[0] != "p":
             out.append(b)
-            prev_q = False
             continue
         runs = b[1]
         is_q = _is_question(runs)
-        if is_q and prev_q and gap:
-            out.append(("p", [("t", "")]))          # 빈 줄
+        if is_q and seen_question and gap:
+            out.extend(("p", [("t", "")]) for _ in range(QUESTION_GAP_LINES))
         if split_choices:
             q_runs, c_runs = _split_choice_runs(runs)
             # A paragraph that already starts with ① contains choices only.
@@ -408,7 +410,8 @@ def transform_blocks(blocks, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTI
                 out.append(("p", c_runs))
         else:
             out.append(("p", runs))
-        prev_q = is_q
+        if is_q:
+            seen_question = True
     # Never emit an empty Markdown paragraph. In particular, a choices-only
     # paragraph must follow its question immediately in the HWPX body.
     return [b for b in out if not (b[0] == "p" and not b[1])]
@@ -727,13 +730,14 @@ def reset_images():
     _images = []
 
 
-def package_hwpx(body_xml, section_patch=None, header_patch=None):
+def package_hwpx(body_xml, section_patch=None, header_patch=None, template_b64=None):
     """본문 XML(hp:p 문단들) -> HWPX bytes.
-    내장 템플릿의 첫 문단(구역 설정) 뒤에 body_xml 을 붙이고, patch_header 를 적용한 뒤,
+    템플릿의 첫 문단(구역 설정) 뒤에 body_xml 을 붙이고, patch_header 를 적용한 뒤,
     picture_xml 로 모아 둔 그림을 BinData/ 와 manifest 에 넣어 zip 으로 묶는다.
-    section_patch / header_patch: 완성된 section0.xml / header.xml 문자열을 받아 고친 문자열을 돌려주는 함수(선택)."""
-    base = zipfile.ZipFile(io.BytesIO(base64.b64decode(_BASE_ZIP_B64)))
-    files = {name: base.read(name) for name in base.namelist()}
+    section_patch / header_patch: 완성된 section0.xml / header.xml 문자열을 받아 고친 문자열을 돌려주는 함수(선택).
+    template_b64: 생략하면 기존 기본 템플릿을 사용한다."""
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(template_b64 or _BASE_ZIP_B64))) as base:
+        files = {name: base.read(name) for name in base.namelist()}
 
     base_sec = files["Contents/section0.xml"].decode("utf-8")
     first_end = base_sec.index("</hp:p>") + len("</hp:p>")
@@ -772,12 +776,21 @@ def package_hwpx(body_xml, section_patch=None, header_patch=None):
     return out.getvalue()
 
 
-def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTIONS, images=None):
-    """Convert markdown text -> HWPX bytes. images: {파일명: bytes} (선택). Returns (data, n_blocks, n_equations)."""
+def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES,
+                             gap=GAP_BETWEEN_QUESTIONS, images=None,
+                             template=DEFAULT_EXAM_TEMPLATE):
+    """Convert markdown text -> exam-sheet HWPX bytes.
+
+    images: {파일명: bytes} (선택). template: EXAM_TEMPLATES의 표시 이름.
+    Returns (data, n_blocks, n_equations).
+    """
     reset_images()
+    if template not in EXAM_TEMPLATES:
+        raise ValueError(f"지원하지 않는 시험지 양식입니다: {template}")
     blocks = parse_markdown(md_text)
     blocks = transform_blocks(blocks, split_choices=split_choices, gap=gap)
-    data = package_hwpx(build_body(blocks, images=images))
+    data = package_hwpx(build_body(blocks, images=images),
+                        template_b64=EXAM_TEMPLATES[template])
     n_eq = sum(1 for b in blocks if b[0] == "eq") + sum(
         1 for b in blocks if b[0] == "p" for k, _ in b[1] if k == "eq")
     return data, len(blocks), n_eq
@@ -805,9 +818,12 @@ def render():
                f"(변환기 {CONVERTER_VERSION})")
 
     with st.expander("변환 옵션", expanded=False):
+        template = st.radio("시험지 양식", options=list(EXAM_TEMPLATES),
+                            index=list(EXAM_TEMPLATES).index(DEFAULT_EXAM_TEMPLATE),
+                            horizontal=True, key="md_template")
         split_choices = st.checkbox("5지선다 보기(①~⑤)를 문항 다음 줄로", value=SPLIT_CHOICES,
                                     key="md_split")
-        gap = st.checkbox("문항과 다음 문항 사이에만 빈 줄 삽입 (문제-보기 사이는 붙임)", value=GAP_BETWEEN_QUESTIONS,
+        gap = st.checkbox("문항과 다음 문항 사이에만 빈 줄 2줄 삽입 (문제-보기 사이는 붙임)", value=GAP_BETWEEN_QUESTIONS,
                           key="md_gap")
 
     tab_file, tab_text = st.tabs(["파일 업로드", "직접 붙여넣기"])
@@ -843,7 +859,7 @@ def render():
             name += ".hwpx"
         try:
             data, nb, ne = convert_md_to_hwpx_bytes(md_text, split_choices=split_choices, gap=gap,
-                                                     images=images)
+                                                     images=images, template=template)
         except Exception as e:
             st.error(f"변환 중 오류가 발생했습니다: {e}")
             st.exception(e)
@@ -863,7 +879,8 @@ def render():
             "- **서식**: 제목(`#`~`######`), **굵게**, 가로줄(`---`), 표(`|...|`)\n"
             "- **이미지**: `![설명](파일명)` — 같은 이름의 이미지 파일을 위에서 함께 업로드하면 "
             "편집 가능한 그림 개체로 삽입됩니다 (PNG/JPEG/GIF/BMP)\n"
-            "- **문항 정리**: 5지선다 보기 줄바꿈, 문항 사이 빈 줄 (옵션에서 조절)\n"
+            "- **시험지 양식**: A4/B4 2단 시험지 중 선택\n"
+            "- **문항 정리**: 5지선다 보기 줄바꿈, 문항 사이 빈 줄 2줄 (옵션에서 조절)\n"
             "- 출력은 HWPX 형식이며 한글 2014 이상에서 열립니다.\n"
             "- 아주 복잡한 수식(조건식 `cases` 등)은 열어서 한 번 확인을 권장합니다.")
 

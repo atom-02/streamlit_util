@@ -157,6 +157,39 @@ class MarkdownParsingTests(unittest.TestCase):
         self.assertTrue(first_text.startswith("24."))
         self.assertTrue(second_text.startswith("①"))
 
+    def test_two_blank_lines_are_inserted_between_question_groups(self):
+        blocks = md2hwpx_app.parse_markdown(
+            "1. 첫 번째 문제\n\n"
+            "① 1  ② 2  ③ 3  ④ 4  ⑤ 5\n\n"
+            "2. 두 번째 문제"
+        )
+
+        transformed = md2hwpx_app.transform_blocks(
+            blocks, split_choices=True, gap=True
+        )
+
+        self.assertEqual(len(transformed), 5)
+        self.assertEqual(
+            transformed[2:4],
+            [("p", [("t", "")]), ("p", [("t", "")])],
+        )
+        self.assertTrue(md2hwpx_app._is_question(transformed[4][1]))
+
+    def test_exam_template_option_preserves_a4_and_b4_page_setup(self):
+        expected_widths = {"A4 시험지": "59528", "B4 시험지": "72852"}
+
+        for template, width in expected_widths.items():
+            with self.subTest(template=template):
+                data, _, _ = md2hwpx_app.convert_md_to_hwpx_bytes(
+                    "1. 문제", template=template
+                )
+                with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                    section = archive.read("Contents/section0.xml").decode("utf-8")
+
+                self.assertIn(f'<hp:pagePr landscape="WIDELY" width="{width}"', section)
+                self.assertIn('colCount="2"', section)
+                self.assertIn('<hp:colLine type="SOLID"', section)
+
     def test_ai_style_bracket_display_math(self):
         blocks = md2hwpx_app.parse_markdown(
             "무한급수\n[ \\sum\\_{n=1}^{\\infty}\\frac1{n(n+2)} ]\n의 합은?"
