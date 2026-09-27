@@ -118,6 +118,22 @@ class LatexToHwpTests(unittest.TestCase):
         for expected in ("EMPTYSET", "FORALL", "it {F}", "ldots", "acute {x}"):
             self.assertIn(expected, converted)
 
+    def test_implies_uses_hancom_right_arrow_keyword(self):
+        self.assertEqual(
+            md2hwpx_app.latex_to_hwp(r"P\implies Q"),
+            "P RARROW Q",
+        )
+
+        data, _, _ = md2hwpx_app.convert_md_to_hwpx_bytes(
+            r"$P\implies Q$"
+        )
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            section = html.unescape(
+                archive.read("Contents/section0.xml").decode("utf-8")
+            )
+        scripts = re.findall(r"<hp:script>(.*?)</hp:script>", section)
+        self.assertEqual(scripts, ["P RARROW Q"])
+
 
 class MarkdownParsingTests(unittest.TestCase):
     def test_choice_only_paragraph_does_not_create_blank_paragraph(self):
@@ -175,10 +191,14 @@ class MarkdownParsingTests(unittest.TestCase):
         )
         self.assertTrue(md2hwpx_app._is_question(transformed[4][1]))
 
-    def test_exam_template_option_preserves_a4_and_b4_page_setup(self):
-        expected_widths = {"A4 시험지": "59528", "B4 시험지": "72852"}
+    def test_output_template_options_preserve_page_and_column_setup(self):
+        expected_layouts = {
+            "A4": ("59528", "1", False),
+            "A4_2단": ("59528", "2", True),
+            "B4_2단": ("72852", "2", True),
+        }
 
-        for template, width in expected_widths.items():
+        for template, (width, columns, has_divider) in expected_layouts.items():
             with self.subTest(template=template):
                 data, _, _ = md2hwpx_app.convert_md_to_hwpx_bytes(
                     "1. 문제", template=template
@@ -187,8 +207,8 @@ class MarkdownParsingTests(unittest.TestCase):
                     section = archive.read("Contents/section0.xml").decode("utf-8")
 
                 self.assertIn(f'<hp:pagePr landscape="WIDELY" width="{width}"', section)
-                self.assertIn('colCount="2"', section)
-                self.assertIn('<hp:colLine type="SOLID"', section)
+                self.assertIn(f'colCount="{columns}"', section)
+                self.assertEqual('<hp:colLine type="SOLID"' in section, has_divider)
 
     def test_ai_style_bracket_display_math(self):
         blocks = md2hwpx_app.parse_markdown(
