@@ -121,11 +121,11 @@ class LatexToHwpTests(unittest.TestCase):
     def test_implies_uses_hancom_right_arrow_keyword(self):
         self.assertEqual(
             md2hwpx_app.latex_to_hwp(r"P\implies Q"),
-            "P RARROW Q",
+            "P ~ RARROW ~ Q",
         )
         self.assertEqual(
             md2hwpx_app.latex_to_hwp(r"P\\implies Q"),
-            "P RARROW Q",
+            "P ~ RARROW ~ Q",
         )
 
         data, _, _ = md2hwpx_app.convert_md_to_hwpx_bytes(
@@ -136,7 +136,7 @@ class LatexToHwpTests(unittest.TestCase):
                 archive.read("Contents/section0.xml").decode("utf-8")
             )
         scripts = re.findall(r"<hp:script>(.*?)</hp:script>", section)
-        self.assertEqual(scripts, ["P RARROW Q"])
+        self.assertEqual(scripts, ["P ~ RARROW ~ Q"])
 
 
 class MarkdownParsingTests(unittest.TestCase):
