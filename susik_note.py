@@ -236,8 +236,12 @@ def render():
         st.text_input("파일 이름", key="susik_name", label_visibility="collapsed",
                       placeholder="파일 이름")
     with top[1]:
-        st.file_uploader("파일 열기", type=["md", "markdown", "txt"], key="susik_upload",
-                         on_change=handle_upload, label_visibility="collapsed")
+        # st.file_uploader는 좁은 컬럼에서도 버튼 + 안내문(용량 제한 등)이 함께
+        # 렌더링되어 최소 2줄을 차지한다. 툴바를 한 줄로 유지하기 위해 실제
+        # 업로더는 popover 안에 넣고, 겉으로는 다른 버튼과 높이가 같은 단일 버튼만 노출한다.
+        with st.popover("📂 열기", use_container_width=True):
+            st.file_uploader("파일 열기", type=["md", "markdown", "txt"], key="susik_upload",
+                             on_change=handle_upload, label_visibility="collapsed")
     with top[2]:
         st.button("새 노트", on_click=ask_new, use_container_width=True, key="susik_new_btn")
 
