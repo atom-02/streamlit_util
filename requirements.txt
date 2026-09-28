@@ -3,3 +3,4 @@ pypdf
 pymupdf
 qrcode[pil]
 reportlab
+matplotlib
