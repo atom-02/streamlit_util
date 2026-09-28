@@ -1,7 +1,7 @@
 """문서 유틸리티 - 수식노트 + Markdown→HWPX 변환기 + 시험지 문항 캡처 + PDF 쪽 추출·병합기 + QR코드 안내문 생성기"""
 import streamlit as st
 
-st.set_page_config(page_title="문서 유틸리티", page_icon="🧰", layout="centered")
+st.set_page_config(page_title="문서 유틸리티", page_icon="🧰", layout="wide")
 
 from susik_note import render as render_susik_note
 from md2hwpx_app import render as render_md2hwpx
