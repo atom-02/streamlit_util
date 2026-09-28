@@ -1,8 +1,42 @@
 # 문서 유틸리티 (Streamlit)
 
-네 가지 문서 도구를 한 화면에 모은 웹앱입니다. 상단 탭으로 전환합니다.
+다섯 가지 문서 도구를 한 화면에 모은 웹앱입니다. 상단 탭으로 전환합니다.
 
 ## 도구
+
+### 🧮 수식노트
+수식이 포함된 마크다운을 편집하면서 바로 옆에서 실시간으로 미리 보고,
+Markdown(.md) · PDF · 한글(HWPX) 세 가지 형식으로 내보내는 도구입니다.
+
+- **편집·미리보기**: 왼쪽에 마크다운 원문을 쓰면 오른쪽에 실시간으로 렌더링됩니다
+  (Streamlit 내장 수식 렌더링 사용, `$…$` / `$$…$$` 인식)
+- **파일 열기**: 기존 `.md`/`.txt` 파일을 불러와 이어서 편집
+- **Markdown 저장**: 편집 중인 원문을 `.md` 파일로 다운로드
+- **PDF로 내보내기**: `md2hwpx_app`의 마크다운 파서(`parse_markdown`/`parse_inline`)로
+  구조를 분석하고, reportlab(Platypus)로 문단을 흘려 쓰며, 수식은 matplotlib의
+  mathtext로 그린 이미지를 문장 안에 인라인으로 끼워 넣습니다. 한글 폰트는
+  `qr_tool`이 등록해 둔 폰트를 그대로 재사용합니다 (기본 문법은 지원하지만
+  `\begin{align}` 같은 고급 LaTeX 환경은 지원하지 않을 수 있음)
+- **한글(HWPX)로 내보내기**: 같은 원문을 `md2hwpx_app.convert_md_to_hwpx_bytes`로
+  그대로 변환 — 편집 가능한 한글 수식 개체로 들어가며, Markdown → HWPX 변환기와
+  동일한 변환 로직을 공유합니다
+- **새 노트**: 확인 후 내용을 비움
+
+#### 변경 사항 (2026-09-28)
+
+- 새 탭 **🧮 수식노트** 추가: 수식이 포함된 마크다운을 편집·실시간 미리보기하고
+  Markdown / PDF / 한글(HWPX) 세 형식으로 내보내는 기능 신규 구현
+- 마크다운 구조 분석은 기존 `md2hwpx_app`의 파서를 그대로 재사용(파서 중복 없음)하여
+  인라인 `$...$`/`\(...\)`, 디스플레이 `$$...$$`/`\[...\]` 델리미터를 동일하게 지원
+- PDF 내보내기를 새로 구현: reportlab Platypus로 자동 줄바꿈·페이지 나눔을 처리하고,
+  수식은 matplotlib mathtext PNG를 문단 안에 인라인 이미지로 배치. 한글 폰트는
+  `qr_tool`에 이미 있는 폰트 등록 로직을 재사용(중복 등록 없음)
+- 한글(HWPX) 내보내기는 `md2hwpx_app.convert_md_to_hwpx_bytes`를 그대로 호출하도록 하여
+  Markdown → HWPX 변환기와 항상 같은 결과를 내도록 함
+- `requirements.txt`에 `matplotlib` 추가 (그 외 새 apt 패키지는 필요 없음 — mathtext는
+  matplotlib에 내장된 폰트만 사용)
+- `test_susik_note.py` 회귀 테스트 추가 (PDF 생성, 빈 노트, 표 안 수식, 잘못된 LaTeX의
+  안전한 폴백, HWPX 변환 공유 확인)
 
 ### 📄 Markdown → HWPX 변환기
 LaTeX 수식이 포함된 마크다운(.md)을 한글(HWPX) 문서로 변환합니다.
@@ -103,16 +137,20 @@ streamlit run streamlit_app.py
 ## 파일 구조
 
 ```
-streamlit_app.py    메인 진입점 (탭으로 세 도구 전환)
+streamlit_app.py    메인 진입점 (탭으로 다섯 도구 전환)
+susik_note.py       수식노트: 편집·미리보기 + Markdown/PDF/HWPX 내보내기 (render(),
+                     md2hwpx_app·qr_tool 재사용)
 md2hwpx_app.py      Markdown → HWPX 변환 로직 + UI (render())
 capture_tool.py     시험지 문항 캡처 → 2단 HWPX 로직 + UI (render(), md2hwpx_app 재사용)
 pdf_tool.py         PDF 추출·병합 로직 + UI (render())
 qr_tool.py          QR코드 안내문(PDF/한글) 생성 로직 + UI (render(), md2hwpx_app 재사용)
-requirements.txt    streamlit, pypdf, pymupdf, qrcode[pil], reportlab
+test_susik_note.py       수식노트 회귀 테스트
+test_md2hwpx_app.py      Markdown → HWPX 변환기 회귀 테스트
+requirements.txt    streamlit, pypdf, pymupdf, qrcode[pil], reportlab, matplotlib
 packages.txt        fonts-nanum (PDF에 한글을 임베드하기 위한 apt 패키지)
 ```
 
-네 모듈 모두 `render()` 함수만 노출하며, `st.set_page_config()`는
+다섯 모듈 모두 `render()` 함수만 노출하며, `st.set_page_config()`는
 `streamlit_app.py`에서 한 번만 호출합니다.
 
 ## 참고
