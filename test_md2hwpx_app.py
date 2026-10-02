@@ -108,15 +108,66 @@ class LatexToHwpTests(unittest.TestCase):
         )
         self.assertEqual(
             md2hwpx_app.latex_to_hwp(r"\begin{aligned}a&=b\\c&=d\end{aligned}"),
-            "eqalign{a=b # c=d}",
+            "eqalign{a&=b # c&=d}",
         )
 
     def test_symbols_fonts_and_accents(self):
         converted = md2hwpx_app.latex_to_hwp(
             r"\emptyset,\forall x,\mathcal{F},\dots,\acute{x}"
         )
-        for expected in ("EMPTYSET", "FORALL", "it {F}", "ldots", "acute {x}"):
+        for expected in ("EMPTYSET", "FORALL", "ℱ", "ldots", "acute {x}"):
             self.assertIn(expected, converted)
+
+    def test_keywords_verified_in_hancom(self):
+        # 한글에서 직접 렌더링해 확인한 대응. 이름을 그대로 넘기면 글자로 찍히던 명령들이다.
+        cases = {
+            r"\overline{AB} \perp \overrightarrow{CD}": "bar {AB} BOT vec {CD}",
+            r"x \in \mathbb{R}": "x in ℝ",
+            r"A \setminus B": "A - B",
+            r"p \Rightarrow q \iff r": "p RARROW q ~ LRARROW ~ r",
+            r"\langle a, b \rangle": "LEFT < a, b RIGHT >",
+            r"\left\langle a \right\rangle": "LEFT < a RIGHT >",
+            r"\lfloor x \rfloor": "LFLOOR x RFLOOR",
+            r"a \not\in A": "a notin A",
+            r"A \not\subset B": "A not subset B",
+            r"\begin{Vmatrix}a&b\\c&d\end{Vmatrix}": "LEFT DLINE matrix{a&b # c&d} RIGHT DLINE",
+            r"\begin{array}{cc}a&b\\c&d\end{array}": "matrix{a&b # c&d}",
+            r"\boxed{x}": "box {x}",
+        }
+        for latex, expected in cases.items():
+            with self.subTest(latex=latex):
+                self.assertEqual(md2hwpx_app.latex_to_hwp(latex), expected)
+
+    def test_spacing_commands_become_hancom_spaces(self):
+        self.assertEqual(md2hwpx_app.latex_to_hwp(r"\int_0^1 x \, dx"), "int _{0}^{1} x ` dx")
+        self.assertEqual(md2hwpx_app.latex_to_hwp(r"a \quad b \; c \! d"), "a ~~ b ~ c d")
+
+    def test_roman_text_does_not_leak(self):
+        # rm 은 닫는 중괄호 뒤까지 번지므로 it 로 닫아야 뒤따르는 변수가 기울임으로 남는다.
+        self.assertEqual(md2hwpx_app.latex_to_hwp(r"\mathrm{P}(A \mid B)"), "{rm P it} (A ~ vert ~ B)")
+        self.assertEqual(md2hwpx_app.latex_to_hwp(r"v = 3 \text{ m/s}"), 'v = 3 ~ {rm "m/s" it}')
+        self.assertEqual(md2hwpx_app.latex_to_hwp(r"\mathbf{x}+y"), "{bold x} +y")
+
+    def test_braces_and_stacked_relations(self):
+        self.assertEqual(md2hwpx_app.latex_to_hwp(r"\underbrace{1+1}_{n}"), "UNDERBRACE {n} {1+1}")
+        self.assertEqual(md2hwpx_app.latex_to_hwp(r"\overbrace{1+1}^{n}"), "OVERBRACE {1+1} {n}")
+        self.assertEqual(md2hwpx_app.latex_to_hwp(r"A \xrightarrow{f} B"), "A REL rarrow {f} {} B")
+        self.assertEqual(md2hwpx_app.latex_to_hwp(r"\sum_{\substack{i<n \\ j<m}} a"),
+                         "sum _{pile{i<n # j<m}} a")
+
+    def test_equation_box_matches_hancom_measurements(self):
+        # 한글이 같은 스크립트에 대해 직접 저장한 (가로, 세로, 기준선 %) 값
+        measured = {
+            "x": (600, 975, 86), "{1} over {2}": (1025, 2250, 66), "sqrt {2}": (1745, 1123, 88),
+            "pmatrix{1 & 0 # 0 & 1}": (2000, 2100, 67), "sum _{k=1}^{n} a_{k}": (2530, 2700, 63),
+            "eqalign{a &= b + c # d &= e}": (3765, 2100, 41),
+        }
+        for script, (width, height, base_line) in measured.items():
+            with self.subTest(script=script):
+                estimate = md2hwpx_app.estimate_equation_box(script)
+                self.assertAlmostEqual(estimate[0] / width, 1, delta=0.05)
+                self.assertAlmostEqual(estimate[1] / height, 1, delta=0.05)
+                self.assertAlmostEqual(estimate[2], base_line, delta=2)
 
     def test_implies_uses_hancom_right_arrow_keyword(self):
         self.assertEqual(
@@ -281,6 +332,53 @@ class MarkdownParsingTests(unittest.TestCase):
         self.assertEqual([block[0] for block in blocks], ["p", "p", "p"])
         self.assertEqual(blocks[0][1], [("t", "- 첫째")])
         self.assertEqual(blocks[1][1], [("t", "- 둘째")])
+
+    def test_particles_attach_to_equations_but_words_keep_space(self):
+        texts = lambda source: [value for kind, value in md2hwpx_app.parse_inline(source)
+                                if kind != "eq"]
+        self.assertEqual(texts("$x$ 의 값은 $y$ 그리고 $z$ 일 때 $w$ 이상"),
+                         ["의 값은 ", " 그리고 ", "일 때 ", " 이상"])
+        self.assertEqual(texts("$a$ and $b$, 또는 $c$ 이다."), [" and ", ", 또는 ", "이다."])
+
+    def test_table_separator_and_bars_inside_math(self):
+        rows = md2hwpx_app.parse_table(["| 식 | 값 |", "|:-:|--:|", "| $|x|$ | 2 |"])
+        self.assertEqual(rows, [["식", "값"], ["$|x|$", "2"]])
+
+    def test_code_fence_lines_are_plain_text(self):
+        blocks = md2hwpx_app.parse_markdown("```\ntotal += k * k  # $x$\n```\n본문")
+        self.assertEqual(blocks, [("p", [("t", "total += k * k  # $x$")]), ("p", [("t", "본문")])])
+
+    def test_table_and_picture_fit_the_column_of_each_template(self):
+        # 2단 양식에서 표·그림이 단 밖으로 넘치지 않고, 작은 그림은 억지로 늘리지 않는다.
+        png = (b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\rIHDR"
+               + (4000).to_bytes(4, "big") + (100).to_bytes(4, "big") + b"\x08\x02\x00\x00\x00")
+        small = png.replace((4000).to_bytes(4, "big"), (200).to_bytes(4, "big"), 1)
+        source = "| a | b |\n|---|---|\n| 1 | 2 |\n\n![큰](big.png)\n\n![작은](small.png)"
+        for template, column in {"A4": 42520, "A4_2단": 24379, "B4_2단": 29623}.items():
+            with self.subTest(template=template):
+                data, _, _ = md2hwpx_app.convert_md_to_hwpx_bytes(
+                    source, images={"big.png": png, "small.png": small}, template=template)
+                with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                    section = archive.read("Contents/section0.xml").decode("utf-8")
+                widths = [int(w) for w in re.findall(r'<hp:sz width="(\d+)"', section)]
+                self.assertEqual(len(widths), 3)
+                self.assertLessEqual(max(widths), column)
+                self.assertGreaterEqual(widths[0], column - 2)
+                self.assertEqual(widths[2], 15000)      # 200px * 75
+        self.assertEqual(md2hwpx_app._column_width, md2hwpx_app.A4_TEXT_WIDTH)
+
+    def test_display_equation_is_centered(self):
+        data, _, _ = md2hwpx_app.convert_md_to_hwpx_bytes("본문\n\n$$E=mc^2$$")
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            section = archive.read("Contents/section0.xml").decode("utf-8")
+            header = archive.read("Contents/header.xml").decode("utf-8")
+        para = re.search(r'<hp:p id="\d+" paraPrIDRef="(\d+)"[^>]*><hp:run charPrIDRef="0"><hp:equation',
+                         section).group(1)
+        centered = re.search(rf'<hh:paraPr id="{para}".*?</hh:paraPr>', header, re.S).group(0)
+        self.assertIn('<hh:align horizontal="CENTER"', centered)
+        self.assertEqual(len(re.findall(r"<hh:paraPr id=", header)),
+                         int(re.search(r'<hh:paraProperties itemCnt="(\d+)"', header).group(1)))
+        self.assertEqual(md2hwpx_app._center_para, "0")
 
     def test_consecutive_exam_lines_remain_separate_paragraphs(self):
         blocks = md2hwpx_app.parse_markdown(

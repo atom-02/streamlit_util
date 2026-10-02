@@ -23,8 +23,10 @@ from exam_templates import EXAM_A4_ZIP_B64, EXAM_B4_ZIP_B64
 SPLIT_CHOICES = True          # ①②③④⑤ 보기를 문항 다음 줄로 내림
 GAP_BETWEEN_QUESTIONS = True  # 새 문항 앞에 빈 줄 삽입
 QUESTION_GAP_LINES = 2        # 문항과 다음 문항 사이의 빈 줄 수
+ATTACH_PARTICLES = True       # `$x$ 의 값` -> `x의 값`: 수식 뒤 조사 앞의 공백 제거
+CENTER_DISPLAY_EQUATIONS = True   # 별행 수식($$...$$, \[...\])을 가운데 정렬
 DEFAULT_OUTPUT_TEMPLATE = "A4"
-CONVERTER_VERSION = "2026.09.27-4"
+CONVERTER_VERSION = "2026.10.02-1"
 
 # --- embedded base HWPX template (real Hancom-saved skeleton) --------------
 _BASE_ZIP_B64 = """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"""
@@ -41,7 +43,7 @@ def _extract_base(dst):
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         z.extractall(dst)
 
-FRAC = (r"\frac", r"\dfrac", r"\tfrac")
+FRAC = (r"\frac", r"\dfrac", r"\tfrac", r"\cfrac")
 KEYWORDS = {
     "sum", "prod", "int", "oint", "lim", "log", "ln", "exp", "max", "min",
     "sin", "cos", "tan", "cot", "sec", "csc", "sinh", "cosh", "tanh",
@@ -54,28 +56,73 @@ KEYWORDS = {
     "in", "notin", "subset", "supset", "subseteq", "supseteq", "cup", "cap", "forall", "exists",
     "sim", "approx", "equiv", "propto",
 }
+# 아래 대응은 한글에서 직접 렌더링해 확인한 키워드만 쓴다. (예: `=>`는 화살표가 아니라
+# 글자 그대로 찍히고, `\perp`·`\setminus`·`\mathbb`는 이름을 그대로 넘기면 글자로 찍힌다.)
 SYMBOL = {
     r"\pm": " +- ", r"\mp": " -+ ",
     r"\leq": " <= ", r"\le": " <= ", r"\geq": " >= ", r"\ge": " >= ",
+    r"\leqslant": " <= ", r"\geqslant": " >= ",
     r"\neq": " != ", r"\ne": " != ",
     r"\ll": " << ", r"\gg": " >> ",
-    r"\infty": " inf ", r"\to": " -> ", r"\rightarrow": " -> ",
+    r"\infty": " inf ", r"\to": " -> ", r"\rightarrow": " -> ", r"\longrightarrow": " -> ",
     r"\gets": " <- ", r"\leftarrow": " <- ",
-    r"\Rightarrow": " => ", r"\Leftarrow": " <= ",
+    r"\Rightarrow": " RARROW ", r"\Longrightarrow": " RARROW ",
+    r"\Leftarrow": " LARROW ", r"\impliedby": " ~ LARROW ~ ",
     r"\implies": " ~ RARROW ~ ",
-    r"\leftrightarrow": " <-> ", r"\Leftrightarrow": " <=> ",
+    r"\leftrightarrow": " lrarrow ", r"\Leftrightarrow": " LRARROW ", r"\iff": " ~ LRARROW ~ ",
+    r"\mapsto": " MAPSTO ",
     r"\cdot": " cdot ", r"\times": " times ", r"\div": " div ",
     r"\mid": " ~ vert ~ ",
+    r"\vert": " | ", r"\lvert": " | ", r"\rvert": " | ",
+    r"\|": " DLINE ", r"\Vert": " DLINE ", r"\lVert": " DLINE ", r"\rVert": " DLINE ",
+    r"\langle": " LEFT < ", r"\rangle": " RIGHT > ",
+    r"\lfloor": " LFLOOR ", r"\rfloor": " RFLOOR ", r"\lceil": " LCEIL ", r"\rceil": " RCEIL ",
     r"\emptyset": " EMPTYSET ", r"\varnothing": " EMPTYSET ",
     r"\forall": " FORALL ", r"\exists": " EXIST ",
+    r"\neg": " LNOT ", r"\lnot": " LNOT ",
+    r"\land": " WEDGE ", r"\wedge": " WEDGE ", r"\lor": " LOR ", r"\vee": " LOR ",
+    r"\supset": " SUPERSET ", r"\ni": " OWNS ",
     r"\subseteq": " SUBSETEQ ", r"\supseteq": " SUPSETEQ ",
+    r"\setminus": " - ",
     r"\therefore": " THEREFORE ", r"\because": " BECAUSE ",
-    r"\ldots": " ldots ", r"\dots": " ldots ", r"\cdots": " cdots ",
+    r"\perp": " BOT ", r"\parallel": " PARALLEL ", r"\degree": " DEG ",
+    r"\ell": " LITER ", r"\colon": " : ",
+    r"\prod": " PROD ", r"\coprod": " COPROD ",
+    r"\iint": " dint ", r"\iiint": " tint ", r"\bigcup": " UNION ", r"\bigcap": " INTER ",
+    r"\ldots": " ldots ", r"\dots": " ldots ", r"\dotsc": " ldots ",
+    r"\cdots": " cdots ", r"\dotsb": " cdots ",
     r"\vdots": " vdots ", r"\ddots": " ddots ",
+    # 간격: 한컴 수식에서 `는 1/4칸, ~는 한 칸이다. (`\!`는 버린다)
+    r"\,": " ` ", r"\;": " ~ ", r"\:": " ~ ", r"\ ": " ~ ", r"\>": " ~ ",
+    r"\quad": " ~~ ", r"\qquad": " ~~~~ ", r"\!": " ",
+    # 조판에만 영향을 주는 명령은 버린다.
+    r"\limits": " ", r"\nolimits": " ", r"\textstyle": " ", r"\scriptstyle": " ",
+    r"\nonumber": " ", r"\notag": " ", r"\hline": " ",
 }
-SPACES = [r"\,", r"\;", r"\:", r"\!", r"\quad", r"\qquad", r"\ ", r"\>"]
 SIZERS = r"\\(?:Biggl|Biggr|Bigg|biggl|biggr|bigg|Bigl|Bigr|Big|bigl|bigr|big)\b"
 DISPLAY_STYLES = r"\\displaystyle\b"
+ACCENTS = {
+    r"\vec": "vec", r"\hat": "hat", r"\bar": "bar", r"\tilde": "tilde", r"\dot": "dot",
+    r"\ddot": "ddot", r"\acute": "acute", r"\grave": "grave", r"\check": "check",
+    r"\under": "under", r"\arch": "arch",
+    r"\overline": "bar", r"\underline": "under", r"\widehat": "hat", r"\widetilde": "tilde",
+    r"\overrightarrow": "vec", r"\overleftrightarrow": "dyad", r"\overarc": "arch",
+}
+# \left, \right 뒤에 오는 이름 있는 구분자. LFLOOR 류는 그 자체가 자동 크기 괄호라 LEFT/RIGHT 없이 쓴다.
+_DELIM = {
+    r"\{": "{", r"\}": "}", r"\lbrace": "{", r"\rbrace": "}", r"\lbrack": "[", r"\rbrack": "]",
+    r"\langle": "<", r"\rangle": ">", r"\vert": "|", r"\lvert": "|", r"\rvert": "|",
+    r"\|": "DLINE", r"\Vert": "DLINE", r"\lVert": "DLINE", r"\rVert": "DLINE",
+}
+_BARE_DELIM = {r"\lfloor": "LFLOOR", r"\rfloor": "RFLOOR", r"\lceil": "LCEIL", r"\rceil": "RCEIL"}
+# 위·아래에 글자를 얹는 관계 기호: 한컴 문법은 REL 기호 {위} {아래}
+_STACKED_ARROWS = {
+    r"\xrightarrow": "rarrow", r"\xleftarrow": "larrow", r"\xleftrightarrow": "lrarrow",
+    r"\xRightarrow": "RARROW", r"\xLeftarrow": "LARROW", r"\xLeftrightarrow": "LRARROW",
+}
+_DOUBLE_STRUCK = {"N": "\u2115", "Z": "\u2124", "Q": "\u211a", "R": "\u211d", "C": "\u2102"}
+_SCRIPT_CAPITALS = {"B": "\u212c", "E": "\u2130", "F": "\u2131", "H": "\u210b",
+                    "I": "\u2110", "L": "\u2112", "M": "\u2133", "R": "\u211b"}
 
 
 def _find_group(s, i):
@@ -106,6 +153,32 @@ def _read_arg(s, i):
     return "", i
 
 
+def _rows(body):
+    """환경 본문의 행 구분 `\\\\`(뒤따르는 `[2pt]` 포함)을 한컴의 `#`으로 바꾼다."""
+    return re.sub(r"\\\\\s*(?:\[[^\]]*\])?", " # ", body).strip().rstrip("#").strip()
+
+
+def _repl_text(m):
+    """`\\text{...}`: 한컴은 따옴표 안 글자를 기울여 쓰고 양끝 공백을 버리므로,
+    rm 으로 세우고 양끝 공백은 `~`로 내보낸다. (rm 은 닫는 중괄호 뒤까지 번져서 it 로 닫는다)"""
+    text = m.group(1).replace('"', "")
+    body = text.strip()
+    if not body:
+        return " ~ "
+    return ((" ~ " if text[:1].isspace() else " ") + '{rm "' + body + '" it}'
+            + (" ~ " if text[-1:].isspace() else " "))
+
+
+def _repl_letters(table, fallback):
+    def repl(m):
+        letters = m.group(1).strip()
+        if letters and all(ch in table or (fallback and ch.isascii() and ch.isupper())
+                           for ch in letters):
+            return " " + "".join(table.get(ch) or fallback(ch) for ch in letters) + " "
+        return " {it " + letters + "} "
+    return repl
+
+
 def _preprocess(s):
     s = s.strip()
     # JSON/Markdown 경유 중 명령 앞의 백슬래시가 두 번 보존된 경우에도
@@ -114,28 +187,41 @@ def _preprocess(s):
     # ``\displaystyle`` only controls TeX layout.  If it reaches the generic
     # command fallback below, Hancom visibly renders the word "displaystyle".
     s = re.sub(DISPLAY_STYLES, "", s)
+    s = re.sub(r"\\(?:tag|label)\s*\{[^{}]*\}", "", s)
     def repl_cases(m):
-        return " cases{" + m.group(1).replace(r"\\", " # ") + "} "
+        return " cases{" + _rows(m.group(1)) + "} "
     s = re.sub(r"\\begin\{cases\}(.*?)\\end\{cases\}", repl_cases, s, flags=re.S)
-    matrix_names = {"matrix": "matrix", "pmatrix": "pmatrix", "bmatrix": "bmatrix",
-                    "vmatrix": "dmatrix", "Vmatrix": "dmatrix"}
+    # Vmatrix(이중 세로줄)와 Bmatrix(중괄호)는 전용 키워드가 없어 자동 크기 괄호로 감싼다.
+    matrix_names = {"matrix": ("matrix{", "}"), "smallmatrix": ("matrix{", "}"),
+                    "pmatrix": ("pmatrix{", "}"), "bmatrix": ("bmatrix{", "}"),
+                    "vmatrix": ("dmatrix{", "}"),
+                    "Vmatrix": ("LEFT DLINE matrix{", "} RIGHT DLINE"),
+                    "Bmatrix": ("LEFT { matrix{", "} RIGHT }")}
     def repl_matrix(m):
-        name = matrix_names[m.group(1)]
-        return " " + name + "{" + m.group(2).replace(r"\\", " # ") + "} "
-    s = re.sub(r"\\begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\}(.*?)\\end\{\1\}",
+        prefix, suffix = matrix_names[m.group(1)]
+        return " " + prefix + _rows(m.group(2)) + suffix + " "
+    s = re.sub(r"\\begin\{(matrix|smallmatrix|pmatrix|bmatrix|vmatrix|Vmatrix|Bmatrix)\}(.*?)\\end\{\1\}",
                repl_matrix, s, flags=re.S)
-    def repl_aligned(m):
-        body = m.group(2).replace(r"\\", " # ").replace("&", "")
-        return " eqalign{" + body + "} "
-    s = re.sub(r"\\begin\{(aligned|align\*?)\}(.*?)\\end\{\1\}", repl_aligned, s, flags=re.S)
-    s = re.sub(r"\\boxed\s*\{", "{", s)
-    for cmd in (r"\text", r"\operatorname"):
-        s = re.sub(re.escape(cmd) + r"\s*\{([^{}]*)\}", r'"\1"', s)
-    for cmd, hwp in ((r"\mathbf", "bold"), (r"\mathrm", "rm"),
-                     (r"\mathit", "it"), (r"\mathcal", "it")):
-        s = re.sub(re.escape(cmd) + r"\s*\{([^{}]*)\}", hwp + r" {\1}", s)
-    for sp in SPACES:
-        s = s.replace(sp, " ")
+    s = re.sub(r"\\begin\{array\}\s*(?:\{[^{}]*\})?(.*?)\\end\{array\}",
+               lambda m: " matrix{" + _rows(m.group(1)) + "} ", s, flags=re.S)
+    # 정렬 환경: `&`를 남겨야 한글이 그 자리(보통 등호)에 맞춰 줄을 세운다.
+    s = re.sub(r"\\begin\{(aligned|align\*?|split|eqnarray\*?|alignat\*?|flalign\*?)\}(.*?)\\end\{\1\}",
+               lambda m: " eqalign{" + _rows(m.group(2)) + "} ", s, flags=re.S)
+    s = re.sub(r"\\begin\{(gathered|gather\*?|equation\*?|multline\*?)\}(.*?)\\end\{\1\}",
+               lambda m: " " + _rows(m.group(2)) + " ", s, flags=re.S)
+    s = re.sub(r"\\substack\s*\{([^{}]*)\}", lambda m: " pile{" + _rows(m.group(1)) + "} ", s)
+    s = re.sub(r"\\boxed\s*\{", " box {", s)
+    for cmd in (r"\text", r"\textrm", r"\textnormal", r"\textbf", r"\textit", r"\mbox"):
+        s = re.sub(re.escape(cmd) + r"\s*\{([^{}]*)\}", _repl_text, s)
+    s = re.sub(r"\\mathbb\s*\{([^{}]*)\}", _repl_letters(_DOUBLE_STRUCK, None), s)
+    s = re.sub(r"\\(?:mathcal|mathscr)\s*\{([^{}]*)\}",
+               _repl_letters(_SCRIPT_CAPITALS, lambda ch: chr(0x1D49C + ord(ch) - 65)), s)
+    for cmd, opening, closing in ((r"\mathbf", "{bold ", "}"), (r"\boldsymbol", "{bold ", "}"),
+                                  (r"\bm", "{bold ", "}"), (r"\mathit", "{it ", "}"),
+                                  (r"\mathrm", "{rm ", " it}"), (r"\operatorname", "{rm ", " it}"),
+                                  (r"\mathsf", "{rm ", " it}"), (r"\mathtt", "{rm ", " it}")):
+        s = re.sub(re.escape(cmd) + r"\s*\{([^{}]*)\}",
+                   lambda m: " " + opening + m.group(1) + closing + " ", s)
     s = re.sub(SIZERS, "", s)
     return s
 
@@ -147,7 +233,10 @@ def latex_to_hwp(src):
     while i < len(s):
         c = s[i]
         if c == "\\":
-            m = re.match(r"\\[A-Za-z]+|\\.", s[i:])
+            m = re.match(r"\\[A-Za-z]+|\\.", s[i:], re.S)
+            if not m:
+                i += 1
+                continue
             cmd = m.group(0)
             # 한컴 수식에서 일반 { }는 여러 항을 묶는 제어문자라 화면에
             # 표시되지 않는다. LaTeX의 이스케이프된 중괄호만 표시용
@@ -158,6 +247,8 @@ def latex_to_hwp(src):
             if cmd == r"\}":
                 set_depth = max(0, set_depth - 1)
                 out.append(" RIGHT } "); i += len(cmd); continue
+            if cmd == "\\\\":
+                out.append(" # "); i += len(cmd); continue
             if cmd in FRAC:
                 a, i = _read_arg(s, i + len(cmd))
                 b, i = _read_arg(s, i)
@@ -176,22 +267,65 @@ def latex_to_hwp(src):
                     x, i = _read_arg(s, i + len(cmd))
                     out.append(" sqrt {" + latex_to_hwp(x) + "} ")
                 continue
-            if cmd in (r"\vec", r"\hat", r"\bar", r"\tilde", r"\dot", r"\ddot", r"\overline",
-                       r"\acute", r"\grave", r"\check", r"\under", r"\arch"):
+            if cmd in ACCENTS:
                 a, i = _read_arg(s, i + len(cmd))
-                name = {r"\overline": "bar"}.get(cmd, cmd[1:])
-                out.append(" " + name + " {" + latex_to_hwp(a) + "} ")
+                out.append(" " + ACCENTS[cmd] + " {" + latex_to_hwp(a) + "} ")
+                continue
+            if cmd in (r"\underbrace", r"\overbrace"):
+                body, i = _read_arg(s, i + len(cmd))
+                mark, label, j = ("_" if cmd == r"\underbrace" else "^"), "", i
+                while j < len(s) and s[j] == " ":
+                    j += 1
+                if j < len(s) and s[j] == mark:
+                    label, i = _read_arg(s, j + 1)
+                body, label = latex_to_hwp(body), latex_to_hwp(label)
+                # 한컴은 UNDERBRACE {아래 글자} {본문}, OVERBRACE {본문} {위 글자} 순서다.
+                if cmd == r"\underbrace":
+                    out.append(" UNDERBRACE {" + label + "} {" + body + "} ")
+                else:
+                    out.append(" OVERBRACE {" + body + "} {" + label + "} ")
+                continue
+            if cmd in (r"\overset", r"\stackrel", r"\underset"):
+                label, i = _read_arg(s, i + len(cmd))
+                base, i = _read_arg(s, i)
+                label, base = latex_to_hwp(label), latex_to_hwp(base)
+                if cmd == r"\underset":
+                    out.append(" REL " + base + " {} {" + label + "} ")
+                else:
+                    out.append(" REL " + base + " {" + label + "} {} ")
+                continue
+            if cmd in _STACKED_ARROWS:
+                j, below = i + len(cmd), ""
+                while j < len(s) and s[j] == " ":
+                    j += 1
+                if j < len(s) and s[j] == "[" and "]" in s[j:]:
+                    k = s.index("]", j)
+                    below, j = s[j + 1:k], k + 1
+                above, i = _read_arg(s, j)
+                out.append(" REL " + _STACKED_ARROWS[cmd] + " {" + latex_to_hwp(above)
+                           + "} {" + latex_to_hwp(below) + "} ")
+                continue
+            if cmd == r"\not":
+                # `\not\in`, `\not=`는 전용 기호로, 나머지는 한컴의 not 접두로 부정한다.
+                target, j = _read_arg(s, i + len(cmd))
+                if target == r"\in":
+                    out.append(" notin "); i = j
+                elif target == "=":
+                    out.append(" != "); i = j
+                else:
+                    out.append(" not "); i += len(cmd)
                 continue
             if cmd in (r"\left", r"\right"):
                 j = i + len(cmd)
                 while j < len(s) and s[j].isspace():
                     j += 1
-                delim = ""
-                if j < len(s) and s[j] == "\\" and j + 1 < len(s):
-                    delim, j = s[j + 1], j + 2
-                elif j < len(s):
-                    delim, j = s[j], j + 1
-                if delim != ".":
+                dm = re.match(r"\\[A-Za-z]+|\\.|.", s[j:], re.S)
+                token = dm.group(0) if dm else ""
+                j += len(token)
+                if token in _BARE_DELIM:
+                    out.append(" " + _BARE_DELIM[token] + " ")
+                elif token and token != ".":
+                    delim = _DELIM.get(token, token)
                     out.append((" LEFT " if cmd == r"\left" else " RIGHT ") + delim + " ")
                     if delim == "{" and cmd == r"\left":
                         set_depth += 1
@@ -215,6 +349,217 @@ def latex_to_hwp(src):
         out.append(c)
         i += 1
     return re.sub(r"[ \t]+", " ", "".join(out)).strip()
+
+
+# ---------------------------------------------------------------------------
+# 수식 상자 크기 추정
+# HWPX는 수식마다 가로·세로·기준선을 직접 적어 둔다. 아래 수치는 한글이 같은 스크립트에
+# 대해 스스로 계산해 저장한 상자(HYhwpEQ, baseUnit 1000) 47개에 맞춘 em 단위 값이다.
+# 세로와 기준선은 몇 % 안, 가로는 대체로 10% 안에서 맞는다.
+# ---------------------------------------------------------------------------
+_ASCENT, _DESCENT, _AXIS, _SCRIPT_SCALE, _RULE_GAP, _ROW_GAP = 0.84, 0.135, 0.36, 0.7, 0.15, 0.15
+_EQ_TOKEN = re.compile(r'"[^"]*"|\+-|-\+|!=|<=>|<->|<=|>=|=>|->|<-|==|<<|>>|[A-Za-z]+|\d+(?:\.\d+)?|\S')
+_GRID = {"matrix": 0.1, "pmatrix": 0.25, "bmatrix": 0.25, "dmatrix": 0.25, "cases": 0.8,
+         "eqalign": 0.0, "pile": 0.0}
+_TOP_ALIGNED = {"eqalign", "pile"}
+_STACKED = {"sum": 1.15, "prod": 1.15, "coprod": 1.15, "union": 1.0, "inter": 1.0, "lim": 1.45}
+_INTEGRALS = {"int": 1.0, "dint": 1.4, "tint": 1.8, "oint": 1.0}
+_GLYPHS = {"(": 0.38, ")": 0.38, "[": 0.35, "]": 0.35, "|": 0.3, ",": 0.4, ".": 0.3, "'": 0.28,
+           "!": 0.35, "/": 0.5, "`": 0.25, "~": 0.35, "=": 1.09, "+": 1.09, "-": 1.09,
+           "<": 1.09, ">": 1.09, "&": 0.0}
+_ACCENT_WORDS = set(ACCENTS.values())
+_FUNCTION_WORDS = set("sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh log ln lg exp "
+                      "max min det gcd mod arg".split())
+_GREEK_WORDS = set("alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi "
+                   "omicron pi rho sigma tau upsilon phi chi psi omega varepsilon vartheta varpi "
+                   "varsigma varphi hbar inf".split())
+_SYMBOL_WORDS = set("times div cdot rarrow larrow lrarrow mapsto vert dline bot parallel deg "
+                    "emptyset forall exist lnot wedge lor superset subset subseteq supseteq owns "
+                    "in notin cup cap therefore because liter ldots cdots vdots ddots lfloor "
+                    "rfloor lceil rceil sim approx equiv propto partial nabla angle triangle "
+                    "circ ast pm mp".split())
+
+
+def _eq_text_width(text):
+    return sum(1.0 if ord(ch) > 0x2E7F else 0.68 if ch.isupper() or ord(ch) > 0x7F else 0.5
+               for ch in text)
+
+
+def _eq_split(tokens, separator):
+    parts, depth = [[]], 0
+    for token in tokens:
+        if token == "{":
+            depth += 1
+        elif token == "}":
+            depth -= 1
+        if token == separator and depth == 0:
+            parts.append([])
+        else:
+            parts[-1].append(token)
+    return parts
+
+
+def _eq_stack(heights, first):
+    """쌓인 행들의 (기준선 위, 아래) 높이. first 가 있으면 첫 행 기준선에 매달고, 없으면 수식 축에 가운데 맞춘다."""
+    total = sum(heights) + _ROW_GAP * (len(heights) - 1)
+    if first is not None:
+        return first, total - first
+    return total / 2 + _AXIS, total / 2 - _AXIS
+
+
+class _EqLayout:
+    """한컴 수식 스크립트를 (가로, 기준선 위, 기준선 아래) em 값으로 대략 조판한다."""
+
+    def __init__(self, tokens):
+        self.tokens, self.pos = tokens, 0
+
+    def peek(self):
+        return self.tokens[self.pos] if self.pos < len(self.tokens) else None
+
+    def group(self):
+        depth, start = 0, self.pos
+        while self.pos < len(self.tokens):
+            token = self.tokens[self.pos]
+            self.pos += 1
+            depth += token == "{"
+            depth -= token == "}"
+            if depth == 0:
+                return self.tokens[start + 1:self.pos - 1]
+        return self.tokens[start + 1:]
+
+    def sequence(self):
+        width, above, below = 0.0, _ASCENT, _DESCENT
+        while self.peek() is not None:
+            box = self.scripted()
+            if self.peek() in ("over", "atop"):
+                self.pos += 1
+                lower = self.scripted()
+                box = (max(box[0], lower[0]) + 0.43, _AXIS + _RULE_GAP + box[1] + box[2],
+                       lower[1] + lower[2] + _RULE_GAP - _AXIS)
+            width += box[0]
+            above, below = max(above, box[1]), max(below, box[2])
+        return width, above, below
+
+    def scripted(self):
+        word = (self.peek() or "").lower()
+        width, above, below = self.atom()
+        lower = upper = None
+        while self.peek() in ("_", "^"):
+            marker = self.tokens[self.pos]
+            self.pos += 1
+            if marker == "_":
+                lower = self.atom()
+            else:
+                upper = self.atom()
+        scripts = [box for box in (lower, upper) if box]
+        if word in _STACKED:
+            for box in scripts:
+                width = max(width, _SCRIPT_SCALE * box[0] + 0.1)
+            if upper:
+                above += _SCRIPT_SCALE * (upper[1] + upper[2]) + 0.1
+            if lower:
+                below += _SCRIPT_SCALE * (lower[1] + lower[2]) + 0.1
+            return width, above, below
+        if word in _INTEGRALS:
+            if scripts:
+                width += _SCRIPT_SCALE * max(box[0] for box in scripts) + 0.38
+            return width, (max(above, 1.6) if upper else above), (max(below, 0.98) if lower else below)
+        if scripts:
+            width += _SCRIPT_SCALE * max(box[0] for box in scripts) + 0.03
+        if upper:
+            above = max(above, max(0.35, above - 0.53) + _SCRIPT_SCALE * (upper[1] + upper[2]))
+        if lower:
+            below = max(below, max(0.0, below - _DESCENT) + _SCRIPT_SCALE * (lower[1] + lower[2]) - 0.35)
+        return width, above, below
+
+    def atom(self):
+        token = self.peek()
+        if token is None:
+            return 0.0, _ASCENT, _DESCENT
+        if token == "{":
+            return _EqLayout(self.group()).rows()
+        self.pos += 1
+        word = token.lower()
+        if word in ("left", "right"):
+            if self.peek() is not None:
+                self.pos += 1
+            return 0.45, _ASCENT, _DESCENT
+        if word == "sqrt":
+            width, above, below = self.atom()
+            return width + 1.15, above + 0.15, below
+        if word == "root":
+            degree = self.atom()
+            if self.peek() == "of":
+                self.pos += 1
+            width, above, below = self.atom()
+            return width + 1.1 + 0.3 * degree[0], above + 0.15, below
+        if word in _GRID and self.peek() == "{":
+            rows = [[_EqLayout(cell).sequence() for cell in _eq_split(row, "&")]
+                    for row in _eq_split(self.group(), "#")]
+            columns = max(len(row) for row in rows)
+            width = sum(max((row[k][0] for row in rows if k < len(row)), default=0.0)
+                        for k in range(columns))
+            if word not in _TOP_ALIGNED:
+                width += 0.675 * (columns - 1)
+            heights = [max(cell[1] for cell in row) + max(cell[2] for cell in row) for row in rows]
+            first = max(cell[1] for cell in rows[0]) if word in _TOP_ALIGNED else None
+            return (width + _GRID[word],) + _eq_stack(heights, first)
+        if word in ("underbrace", "overbrace"):
+            first, second = self.atom(), self.atom()
+            body, label = (second, first) if word == "underbrace" else (first, second)
+            extra = 0.32 + _SCRIPT_SCALE * (label[1] + label[2])
+            return (max(body[0], _SCRIPT_SCALE * label[0]),
+                    body[1] + (extra if word == "overbrace" else 0),
+                    body[2] + (extra if word == "underbrace" else 0))
+        if word == "rel":
+            base, upper, lower = self.atom(), self.atom(), self.atom()
+            return (max(base[0], _SCRIPT_SCALE * upper[0], _SCRIPT_SCALE * lower[0]) + 0.3,
+                    base[1] + (_SCRIPT_SCALE * (upper[1] + upper[2]) if upper[0] else 0),
+                    base[2] + (_SCRIPT_SCALE * (lower[1] + lower[2]) if lower[0] else 0))
+        if word in _ACCENT_WORDS or word == "box":
+            width, above, below = self.atom()
+            if word == "under":
+                return width + 0.15, above, below + 0.15
+            return width + 0.15, above + 0.2, below
+        if word in ("rm", "it", "bold", "not"):
+            return 0.0, _ASCENT, _DESCENT
+        if word in _STACKED:
+            return (_STACKED[word], 0.95, _DESCENT) if word == "lim" else (_STACKED[word], 0.92, 0.22)
+        if word in _INTEGRALS:
+            return _INTEGRALS[word], 1.1, 0.5
+        if token.startswith('"'):
+            return _eq_text_width(token[1:-1]), _ASCENT, _DESCENT
+        if word in _FUNCTION_WORDS:
+            return 0.5 * len(token) + 0.2, _ASCENT, _DESCENT
+        if word in _GREEK_WORDS:
+            return 0.62, _ASCENT, _DESCENT
+        if word in _SYMBOL_WORDS or (len(token) > 1 and token.isupper()):
+            return 1.25, _ASCENT, _DESCENT
+        if len(token) > 1 and not token.isalnum():
+            return 1.2, _ASCENT, _DESCENT
+        if token[0].isdigit():
+            return 0.5 * len(token), _ASCENT, _DESCENT
+        if token in _GLYPHS:
+            return _GLYPHS[token], _ASCENT, _DESCENT
+        return _eq_text_width(token), _ASCENT, _DESCENT
+
+    def rows(self):
+        lines = [_EqLayout(row).sequence() for row in _eq_split(self.tokens, "#")]
+        if len(lines) == 1:
+            return lines[0]
+        return (max(line[0] for line in lines),) + _eq_stack([line[1] + line[2] for line in lines],
+                                                              lines[0][1])
+
+
+def estimate_equation_box(script, base_unit=1000):
+    """한컴 수식 스크립트의 (가로, 세로, 기준선 %)를 HWPUNIT 로 추정한다."""
+    try:
+        width, above, below = _EqLayout(_EQ_TOKEN.findall(script)).rows()
+    except (IndexError, ValueError):   # 괄호가 안 맞는 등 조판할 수 없는 스크립트
+        width, above, below = 0.6 * len(script), _ASCENT, _DESCENT
+    height = above + below
+    return (min(max(int((width + 0.1) * base_unit), 500), 42000), int(height * base_unit),
+            round(above / height * 100))
 
 
 # ===========================================================================
@@ -251,6 +596,12 @@ def parse_markdown(text):
             blocks.append(("img", m_img.group(1), m_img.group(2).strip())); i += 1; continue
         if re.match(r"^-{3,}$", st):
             blocks.append(("hr",)); i += 1; continue
+        if st.startswith("```"):
+            # 코드 블록: 울타리(```) 줄은 버리고, 안쪽 줄은 수식·굵게 해석 없이 그대로 싣는다.
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith("```"):
+                blocks.append(("p", [("t", lines[i].rstrip())])); i += 1
+            i += 1; continue
         if st.startswith("|"):
             tbl = []
             while i < len(lines) and lines[i].strip().startswith("|"):
@@ -296,9 +647,32 @@ def parse_markdown(text):
     return blocks
 
 
+def _split_table_row(row):
+    """표의 한 행을 `|`로 나눈다. 수식 `$...$` 안의 `|`(절댓값 등)와 `\\|`는 칸을 나누지 않는다."""
+    cells, in_math, k = [""], False, 0
+    row = row.strip()
+    while k < len(row):
+        ch = row[k]
+        if ch == "\\" and k + 1 < len(row):
+            cells[-1] += row[k:k + 2]; k += 2; continue
+        if ch == "$":
+            in_math = not in_math
+        if ch == "|" and not in_math:
+            cells.append("")
+        else:
+            cells[-1] += ch
+        k += 1
+    if cells and not cells[0].strip():
+        cells.pop(0)
+    if cells and not cells[-1].strip():
+        cells.pop()
+    return [c.strip() for c in cells]
+
+
 def parse_table(rows):
-    cells = [[c.strip() for c in r.strip().strip("|").split("|")] for r in rows]
-    return [r for r in cells if not all(re.match(r"^:?-{2,}:?$", c or "-") for c in r)]
+    cells = [_split_table_row(r) for r in rows]
+    # 구분 행(`|---|:-:|--:|`)은 싣지 않는다. 대시가 하나뿐인 `:-:`도 구분 행이다.
+    return [r for r in cells if not all(re.match(r"^:?-+:?$", c or "-") for c in r)]
 
 
 # 인라인 수식 델리미터: $...$ (LaTeX 표준) 또는 \(...\) (ChatGPT 등 AI가 흔히 씀)
@@ -355,7 +729,30 @@ def parse_inline(text):
         pos = m.end()
     if pos < len(text):
         runs.extend(_split_parenthesized_latex(text[pos:]))
-    return runs
+    return _attach_particles(runs) if ATTACH_PARTICLES else runs
+
+
+# 수식 바로 뒤에 붙여 쓰는 말: 조사, 조사끼리 겹친 꼴, '이다'의 활용형.
+_PARTICLES = set("""은 는 이 가 을 를 의 에 와 과 도 로 으로 만 나 이나 며 이며 고 이고 면 이면 든 이든 란 이란 야 이야 들 씩 뿐 랑 이랑
+    에서 에게 한테 께 까지 부터 보다 처럼 마다 조차 마저 밖에 만큼 대로 끼리 로서 으로서 로써 으로써 로부터 으로부터 라도 이라도 라고 이라고 라는 이라는 라면 이라면 라 이라
+    에는 에도 에만 에서는 에서도 에서의 에의 에게는 에게서 까지의 까지는 부터의 부터는 와의 과의 와는 과는 와도 과도 로의 으로의 로는 으로는 로도 으로도 만의 만은 만을 만이 보다는 보다도
+    은커녕 는커녕 이라고는 이라든지 라든지 이든지 든지 이거나 거나 이지만 지만 인데 이므로 므로 이어서 여서 이어야 여야 이라서 라서 이니 이니까 니까
+    이다 다 입니다 이었다 였다 이었고 였고 일 인 임 임을 임이 임에 인지 일까 이어도 여도 이면서 면서 이자 이기 이기도 이기에""".split())
+
+
+def _attach_particles(runs):
+    """`$x$ 의 값`처럼 수식과 조사 사이에 띄어 쓴 공백을 없앤다(→ `x의 값`).
+    조사가 아닌 낱말(`$x$ 그리고`)과 영문·숫자·문장부호 앞의 공백은 그대로 둔다."""
+    out = list(runs)
+    for k in range(1, len(out)):
+        kind, val = out[k]
+        if kind not in ("t", "b") or out[k - 1][0] != "eq":
+            continue
+        rest = val.lstrip(" \t")
+        word = re.match(r"[가-힣]+", rest)
+        if rest != val and word and word.group(0) in _PARTICLES:
+            out[k] = (kind, rest)
+    return out
 
 
 # ===========================================================================
@@ -533,19 +930,7 @@ def equation_xml(latex):
     _eq_id += 7
     script = latex_to_hwp(latex)
     bu = 1000
-    n = max(len(re.sub(r"[{}\s]", "", script)), 2)
-    h = 1.5
-    if "over" in script or "cases" in script or "matrix" in script or "dmatrix" in script or "eqalign" in script:
-        h += 1.1
-    if "cases" in script:
-        h += latex.count(r"\\") * 0.9
-    if "sqrt" in script or "root" in script:
-        h += 0.4
-    if any(k in script for k in ("sum", "int", "prod", "lim")):
-        h += 0.7
-    height = int(bu * h)
-    width = min(int(bu * 0.60 * n), 42000)
-    base_line = max(1, height // 54)
+    width, height, base_line = estimate_equation_box(script, bu)
     return (
         f'<hp:run charPrIDRef="0"><hp:equation id="{_eq_id}" zOrder="0" '
         f'numberingType="EQUATION" textWrap="TOP_AND_BOTTOM" textFlow="BOTH_SIDES" '
@@ -586,18 +971,28 @@ def runs_from_inline(items, text_cp="0", bold_cp="9"):
 
 
 CELL_W = [7000, 17760, 17760]
+A4_TEXT_WIDTH = 42520      # 기본 A4 양식의 본문 너비(HWPUNIT)
+# 본문 한 단의 너비와 가운데 정렬 문단 모양 id. convert_md_to_hwpx_bytes 가 고른 양식에 맞춰
+# 변환하는 동안만 바꿔 두며, 그 밖(qr_tool·capture_tool 의 직접 호출)에서는 기본값 그대로다.
+_column_width = A4_TEXT_WIDTH
+_center_para = "0"
 
 def table_xml(cells):
     global _obj_id, _pid
     _obj_id += 11
     ncol = max(len(r) for r in cells)
-    widths = CELL_W if ncol == 3 else [42520 // ncol] * ncol
+    # 표 전체 너비를 단 너비에 맞춘다(2단 양식에서 표가 단 밖으로 넘치지 않도록).
+    total_w = _column_width
+    if ncol == 3:
+        widths = [w * total_w // sum(CELL_W) for w in CELL_W]
+    else:
+        widths = [total_w // ncol] * ncol
     rowh, total_h = 2600, 2600 * len(cells)
     parts = [
         f'<hp:tbl id="{_obj_id}" zOrder="0" numberingType="TABLE" textWrap="TOP_AND_BOTTOM" '
         f'textFlow="BOTH_SIDES" lock="0" dropcapstyle="None" pageBreak="CELL" repeatHeader="1" '
         f'rowCnt="{len(cells)}" colCnt="{ncol}" cellSpacing="0" borderFillIDRef="3" noAdjust="0">'
-        f'<hp:sz width="42520" widthRelTo="ABSOLUTE" height="{total_h}" heightRelTo="ABSOLUTE" protect="0"/>'
+        f'<hp:sz width="{sum(widths)}" widthRelTo="ABSOLUTE" height="{total_h}" heightRelTo="ABSOLUTE" protect="0"/>'
         f'<hp:pos treatAsChar="1" affectLSpacing="0" flowWithText="1" allowOverlap="0" '
         f'holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="COLUMN" vertAlign="TOP" horzAlign="LEFT" '
         f'vertOffset="0" horzOffset="0"/>'
@@ -648,9 +1043,9 @@ def build_body(blocks, images=None):
             # Keep heading text styled while emitting math as editable equations.
             out.append(paragraph(runs_from_inline(parse_inline(b[2]), cp, cp)))
         elif b[0] == "hr":
-            out.append(paragraph([text_run("─" * 40)]))
+            out.append(paragraph([text_run("─" * max(8, 40 * _column_width // A4_TEXT_WIDTH))]))
         elif b[0] == "eq":
-            out.append(paragraph([equation_xml(b[1])]))
+            out.append(paragraph([equation_xml(b[1])], para_pr=_center_para))
         elif b[0] == "table":
             out.append(paragraph([table_xml(b[1])]))
         elif b[0] == "p":
@@ -664,7 +1059,11 @@ def build_body(blocks, images=None):
                                                 f"— 같은 이름의 이미지 파일을 함께 업로드하세요]")]))
             else:
                 try:
-                    out.append(paragraph([picture_xml(raw, name)]))
+                    # 그림은 원래 크기(96dpi 기준)로 넣되 단 너비를 넘으면 단 너비에 맞춰 줄인다.
+                    px_w = _image_size(raw)[0]
+                    out.append(paragraph([picture_xml(
+                        raw, name, width_mm=px_w * HWPUNIT_PER_PX96 / HWPUNIT_PER_MM,
+                        max_width_mm=_column_width / HWPUNIT_PER_MM)]))
                 except ValueError as e:
                     out.append(paragraph([text_run(f"[이미지 삽입 실패: {alt or name} - {e}]")]))
     return "".join(out)
@@ -784,6 +1183,38 @@ def package_hwpx(body_xml, section_patch=None, header_patch=None, template_b64=N
     return out.getvalue()
 
 
+def _template_layout(template_b64):
+    """양식의 (본문 한 단 너비 HWPUNIT, paraPr 개수)를 읽는다. 읽지 못하면 (A4 본문 너비, 0)."""
+    with zipfile.ZipFile(io.BytesIO(base64.b64decode(template_b64))) as base:
+        section = base.read("Contents/section0.xml").decode("utf-8")
+        header = base.read("Contents/header.xml").decode("utf-8")
+    count = re.search(r'<hh:paraProperties itemCnt="(\d+)"', header)
+    page = re.search(r'<hp:pagePr[^>]*\swidth="(\d+)"', section)
+    margin = re.search(r"<hp:margin[^>]*/>", section)
+    if not (page and margin):
+        return A4_TEXT_WIDTH, int(count.group(1)) if count else 0
+    width = int(page.group(1)) - sum(
+        int(m.group(1)) for side in ("left", "right", "gutter")
+        for m in [re.search(rf'\s{side}="(\d+)"', margin.group(0))] if m)
+    columns = re.search(r"<hp:colPr[^>]*>", section)
+    n_col = int(re.search(r'colCount="(\d+)"', columns.group(0)).group(1)) if columns else 1
+    gap = re.search(r'sameGap="(\d+)"', columns.group(0)) if columns else None
+    width = (width - (int(gap.group(1)) if gap else 0) * (n_col - 1)) // max(n_col, 1)
+    return width, int(count.group(1)) if count else 0
+
+
+def _add_center_parapr(header, new_id):
+    """paraPr id=0 을 복제해 가운데 정렬로 바꾼 문단 모양을 new_id 로 덧붙인다(별행 수식용)."""
+    pp0 = re.search(r'<hh:paraPr id="0".*?</hh:paraPr>', header, re.S)
+    if not pp0:
+        return header
+    centered = pp0.group(0).replace('id="0"', f'id="{new_id}"', 1)
+    centered = re.sub(r'(<hh:align horizontal=")[A-Z_]+(")', r"\g<1>CENTER\g<2>", centered, count=1)
+    header = header.replace("</hh:paraProperties>", centered + "</hh:paraProperties>", 1)
+    return re.sub(r'(<hh:paraProperties itemCnt=")(\d+)(")',
+                  lambda m: f"{m.group(1)}{int(m.group(2)) + 1}{m.group(3)}", header, count=1)
+
+
 def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES,
                              gap=GAP_BETWEEN_QUESTIONS, images=None,
                              template=DEFAULT_OUTPUT_TEMPLATE):
@@ -792,13 +1223,23 @@ def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES,
     images: {파일명: bytes} (선택). template: OUTPUT_TEMPLATES의 표시 이름.
     Returns (data, n_blocks, n_equations).
     """
+    global _column_width, _center_para
     reset_images()
     if template not in OUTPUT_TEMPLATES:
         raise ValueError(f"지원하지 않는 출력 양식입니다: {template}")
     blocks = parse_markdown(md_text)
     blocks = transform_blocks(blocks, split_choices=split_choices, gap=gap)
-    data = package_hwpx(build_body(blocks, images=images),
-                        template_b64=OUTPUT_TEMPLATES[template])
+    column_width, n_para = _template_layout(OUTPUT_TEMPLATES[template])
+    header_patch = None
+    try:
+        _column_width = column_width
+        if CENTER_DISPLAY_EQUATIONS and n_para:
+            _center_para = str(n_para)
+            header_patch = lambda header: _add_center_parapr(header, n_para)
+        data = package_hwpx(build_body(blocks, images=images), header_patch=header_patch,
+                            template_b64=OUTPUT_TEMPLATES[template])
+    finally:
+        _column_width, _center_para = A4_TEXT_WIDTH, "0"
     n_eq = sum(1 for b in blocks if b[0] == "eq") + sum(
         1 for b in blocks if b[0] == "p" for k, _ in b[1] if k == "eq")
     return data, len(blocks), n_eq
@@ -884,9 +1325,13 @@ def render():
             "- **수식**: 인라인 `$...$` / `\\(...\\)`, 디스플레이 `$$...$$` / `\\[...\\]` (LaTeX)\n"
             "- **집합 중괄호**: `A=\\{1,2,3\\}` 또는 `A=\\left\\{x\\mid x>0\\right\\}` "
             "(원소 사이는 `~`, `\\mid`는 `~ vert ~`로 변환)\n"
-            "- **서식**: 제목(`#`~`######`), **굵게**, 가로줄(`---`), 표(`|...|`)\n"
+            "- **띄어쓰기**: `$x$ 의 값`처럼 수식과 조사 사이를 띄어 쓰면 `x의 값`으로 붙입니다 "
+            "(조사가 아닌 낱말은 그대로 띄움)\n"
+            "- **서식**: 제목(`#`~`######`), **굵게**, 가로줄(`---`), 표(`|...|`), "
+            "별행 수식은 가운데 정렬\n"
             "- **이미지**: `![설명](파일명)` — 같은 이름의 이미지 파일을 위에서 함께 업로드하면 "
-            "편집 가능한 그림 개체로 삽입됩니다 (PNG/JPEG/GIF/BMP)\n"
+            "편집 가능한 그림 개체로 삽입됩니다 (PNG/JPEG/GIF/BMP). 원래 크기로 넣고 "
+            "단 너비보다 클 때만 줄입니다\n"
             "- **출력 양식**: 기본 A4, A4 2단, B4 2단 중 선택\n"
             "- **문항 정리**: 5지선다 보기 줄바꿈, 문항 사이 빈 줄 2줄 (옵션에서 조절)\n"
             "- 출력은 HWPX 형식이며 한글 2014 이상에서 열립니다.\n"
