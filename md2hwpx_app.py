@@ -26,7 +26,7 @@ QUESTION_GAP_LINES = 2        # 문항과 다음 문항 사이의 빈 줄 수
 ATTACH_PARTICLES = True       # `$x$ 의 값` -> `x의 값`: 수식 뒤 조사 앞의 공백 제거
 CENTER_DISPLAY_EQUATIONS = True   # 별행 수식($$...$$, \[...\])을 가운데 정렬
 DEFAULT_OUTPUT_TEMPLATE = "A4"
-CONVERTER_VERSION = "2026.10.02-1"
+CONVERTER_VERSION = "2026.10.02-2"
 
 # --- embedded base HWPX template (real Hancom-saved skeleton) --------------
 _BASE_ZIP_B64 = """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"""
@@ -583,8 +583,53 @@ def _is_bare_bracket_math_start(text):
     return text.startswith("[") and bool(_LATEX_COMMAND_RE.search(text))
 
 
+_NUMBERED_LINE_RE = re.compile(r"^\s*(?:\*\*)?\d+\.")
+_SOLUTION_HEADING_RE = re.compile(r"풀이|해설|정답|증명")
+_SOLUTION_MARK_RE = re.compile(r"[가-힣]{0,4}(?:풀이|해설|증명)(?:과정)?")
+_PROBLEM_MARK_RE = re.compile(r"(?:문제|문항|예제|유제)\d*")
+
+
+def _marker_text(runs):
+    """문단의 글자만 모아 공백·괄호·쌍점을 뺀 것(`**간단 풀이:**` -> `간단풀이`)."""
+    text = "".join(val for kind, val in runs if kind in ("t", "b"))
+    return re.sub(r"[\s:：\[\]()<>【】]", "", text)
+
+
 def parse_markdown(text):
+    return _parse_markdown(text)[0]
+
+
+def _parse_markdown(text):
+    """(blocks, steps) 를 돌려준다. steps 는 번호로 시작하지만 문항이 아니라
+    풀이 단계·번호 목록인 문단의 blocks 인덱스 집합이다(문항 간격을 넣지 않을 대상).
+
+    번호 문단을 문항이 아닌 것으로 보는 경우:
+    - 빈 줄 없이 번호 줄이 바로 이어질 때 (`1. …` 다음 줄이 `2. …`): 번호 목록
+    - `풀이`·`해설`·`정답`·`증명` 제목이나 `**간단 풀이:**` 같은 표시 문단 아래에 있을 때.
+      제목으로 시작한 풀이는 같은 수준 이상의 다른 제목에서, 표시 문단으로 시작한 풀이는
+      다음 제목·가로줄·`**문제:**` 표시에서 끝난다.
+    """
     blocks, lines = [], text.replace("\r\n", "\n").split("\n")
+    steps = set()
+    solution_level = None      # 풀이 제목의 수준(#의 개수). None 이면 풀이 구간이 아님
+    solution_mark = False      # `**간단 풀이:**` 같은 표시 문단 아래인지
+
+    def numbered(k):
+        return 0 <= k < len(lines) and bool(_NUMBERED_LINE_RE.match(lines[k]))
+
+    def add_paragraph(k, runs):
+        nonlocal solution_mark
+        if numbered(k):
+            if solution_level is not None or solution_mark or numbered(k - 1) or numbered(k + 1):
+                steps.add(len(blocks))
+        else:
+            mark = _marker_text(runs)
+            if _PROBLEM_MARK_RE.fullmatch(mark):
+                solution_mark = False
+            elif _SOLUTION_MARK_RE.fullmatch(mark) or mark.startswith("정답"):
+                solution_mark = True
+        blocks.append(("p", runs))
+
     i = 0
     while i < len(lines):
         line = lines[i].rstrip()
@@ -595,6 +640,7 @@ def parse_markdown(text):
         if m_img:
             blocks.append(("img", m_img.group(1), m_img.group(2).strip())); i += 1; continue
         if re.match(r"^-{3,}$", st):
+            solution_mark = False
             blocks.append(("hr",)); i += 1; continue
         if st.startswith("```"):
             # 코드 블록: 울타리(```) 줄은 버리고, 안쪽 줄은 수식·굵게 해석 없이 그대로 싣는다.
@@ -636,15 +682,22 @@ def parse_markdown(text):
                 i += 1; continue
         m = re.match(r"^(#{1,6})\s+(.*)$", line)
         if m:
-            blocks.append(("h", len(m.group(1)), m.group(2).strip())); i += 1; continue
+            level = len(m.group(1))
+            solution_mark = False
+            if _SOLUTION_HEADING_RE.search(m.group(2)):
+                if solution_level is None or level < solution_level:
+                    solution_level = level
+            elif solution_level is not None and level <= solution_level:
+                solution_level = None
+            blocks.append(("h", level, m.group(2).strip())); i += 1; continue
         if _LIST_RE.match(line):
-            blocks.append(("p", parse_inline(line.strip()))); i += 1; continue
+            add_paragraph(i, parse_inline(line.strip())); i += 1; continue
         # 시험지 Markdown은 빈 줄 없이도 문제/조건/해설을 줄 단위로 작성하는
         # 경우가 많다. 연속 줄을 한 문단으로 합치면 여러 수식 개체의 고정 폭이
         # 누적되어 한글에서 큰 공백과 겹침이 생기므로 원본 줄을 각각 보존한다.
-        blocks.append(("p", parse_inline(line.strip())))
+        add_paragraph(i, parse_inline(line.strip()))
         i += 1
-    return blocks
+    return blocks, steps
 
 
 def _split_table_row(row):
@@ -792,16 +845,17 @@ def _split_choice_runs(runs):
     return runs, None
 
 
-def transform_blocks(blocks, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTIONS):
-    """파싱된 blocks에 보기 줄바꿈/문항 간격을 적용한 새 blocks 반환."""
+def transform_blocks(blocks, split_choices=SPLIT_CHOICES, gap=GAP_BETWEEN_QUESTIONS, steps=()):
+    """파싱된 blocks에 보기 줄바꿈/문항 간격을 적용한 새 blocks 반환.
+    steps: 번호로 시작하지만 문항이 아닌(풀이 단계·번호 목록) 문단의 인덱스 — _parse_markdown 참고."""
     out = []
     seen_question = False
-    for b in blocks:
+    for idx, b in enumerate(blocks):
         if b[0] != "p":
             out.append(b)
             continue
         runs = b[1]
-        is_q = _is_question(runs)
+        is_q = _is_question(runs) and idx not in steps
         if is_q and seen_question and gap:
             out.extend(("p", [("t", "")]) for _ in range(QUESTION_GAP_LINES))
         if split_choices:
@@ -1227,8 +1281,8 @@ def convert_md_to_hwpx_bytes(md_text, split_choices=SPLIT_CHOICES,
     reset_images()
     if template not in OUTPUT_TEMPLATES:
         raise ValueError(f"지원하지 않는 출력 양식입니다: {template}")
-    blocks = parse_markdown(md_text)
-    blocks = transform_blocks(blocks, split_choices=split_choices, gap=gap)
+    blocks, steps = _parse_markdown(md_text)
+    blocks = transform_blocks(blocks, split_choices=split_choices, gap=gap, steps=steps)
     column_width, n_para = _template_layout(OUTPUT_TEMPLATES[template])
     header_patch = None
     try:

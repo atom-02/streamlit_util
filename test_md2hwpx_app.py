@@ -246,6 +246,27 @@ class MarkdownParsingTests(unittest.TestCase):
         )
         self.assertTrue(md2hwpx_app._is_question(transformed[4][1]))
 
+    def _gaps(self, source):
+        blocks, steps = md2hwpx_app._parse_markdown(source)
+        transformed = md2hwpx_app.transform_blocks(blocks, split_choices=True, gap=True, steps=steps)
+        return sum(1 for block in transformed if block == ("p", [("t", "")]))
+
+    def test_solution_steps_are_not_spaced_like_questions(self):
+        # 풀이 표시 문단 아래의 번호 줄은 풀이 단계다. 빈 줄로 떨어져 있어도 문항 간격을 넣지 않는다.
+        self.assertEqual(self._gaps(
+            "**27.** 문제의 값은?\n\n**간단 풀이:**\n1. 미분한다.\n2. 대입한다.\n\n3. 정리한다."), 0)
+        # 풀이 제목 아래: 하위 제목(### 1단계)을 지나도 풀이 구간이 이어진다.
+        self.assertEqual(self._gaps(
+            "1. 문제\n\n# 문제 풀이\n\n### 1단계\n\n1. 첫 단계\n\n### 2단계\n\n2. 둘째 단계"), 0)
+        # 표시가 없어도 빈 줄 없이 이어진 번호 줄은 번호 목록으로 본다.
+        self.assertEqual(self._gaps("1. 문제\n\n설명\n1. 가\n2. 나\n3. 다"), 0)
+
+    def test_questions_after_a_solution_section_are_spaced_again(self):
+        source = ("1. 첫 문제\n\n**풀이:**\n1. 단계\n\n---\n\n2. 둘째 문제\n\n"
+                  "# 해설\n\n1. 해설 단계\n\n# 다음 문제\n\n3. 셋째 문제")
+        self.assertEqual(self._gaps(source), 2 * md2hwpx_app.QUESTION_GAP_LINES)
+        self.assertEqual(self._gaps("**문제:**\n1. 문제 가\n\n2. 문제 나"), md2hwpx_app.QUESTION_GAP_LINES)
+
     def test_output_template_options_preserve_page_and_column_setup(self):
         expected_layouts = {
             "A4": ("59528", "1", False),
